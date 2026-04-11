@@ -1,0 +1,60 @@
+{
+  "name": "GRAP Watch — Delhi NCR",
+  "short_name": "GRAP Watch",
+  "description": "Real-time GRAP stage & AQI monitor for Delhi NCR",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0c10",
+  "theme_color": "#ff6b35",
+  "lang": "hi",
+  "dir": "ltr",
+  "categories": ["health", "utilities", "weather"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Delhi AQI",
+      "short_name": "Delhi",
+      "description": "Check Delhi AQI",
+      "url": "/?station=delhi",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Noida AQI",
+      "short_name": "Noida",
+      "url": "/?station=noida",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "widgets": [
+    {
+      "name": "GRAP Stage Widget",
+      "short_name": "GRAP",
+      "description": "Shows current GRAP stage and AQI for Delhi",
+      "tag": "grap-widget",
+      "template": "grap-widget-template",
+      "ms_ac_template": "grap-widget-ac",
+      "data": "/widget-data.json",
+      "type": "application/json",
+      "screenshots": [],
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }],
+      "backgrounds": [{ "src": "/widget-bg.png", "sizes": "400x200" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

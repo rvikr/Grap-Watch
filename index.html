@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GRAP Watch — Delhi NCR</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#ff6b35"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="GRAP Watch"/>
+<link rel="apple-touch-icon" href="apple-touch-icon.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"/>
+<meta name="msapplication-TileColor" content="#0a0c10"/>
+
+<!-- OG / Share -->
+<meta property="og:title" content="GRAP Watch — Delhi NCR Air Quality"/>
+<meta property="og:description" content="Real-time GRAP stage alerts and AQI for Delhi NCR"/>
+<meta property="og:type" content="website"/>
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-title" id="appTitle">GRAP WATCH</div>
+      <div class="logo-sub" id="appSubtitle">Delhi · NCR · Air Quality</div>
+    </div>
+    <div class="header-right">
+      <div class="lang-toggle" role="group" aria-label="Language selection">
+        <button class="lang-btn active" onclick="setLang('hi')" id="btnHi" aria-pressed="true" aria-label="हिंदी">हि</button>
+        <button class="lang-btn" onclick="setLang('en')" id="btnEn" aria-pressed="false" aria-label="English">EN</button>
+      </div>
+      <div class="live-dot" id="liveStatus" role="status">LIVE</div>
+    </div>
+  </div>
+
+  <!-- PWA INSTALL BANNER -->
+  <div id="installBanner">
+    <span aria-hidden="true">📲</span>
+    <span id="installText">Add to home screen</span>
+    <button id="installBtn" onclick="triggerInstall()">Install</button>
+  </div>
+
+  <!-- NOTIFICATION TOAST -->
+  <div class="toast-bar" id="notifToast" role="alert">
+    <span aria-hidden="true">🔔</span>
+    <span id="toastMsg">Get notified when GRAP changes</span>
+    <button onclick="requestNotificationPermission()" id="toastAction">Enable</button>
+    <button class="toast-close" onclick="document.getElementById('notifToast').classList.remove('show')" aria-label="Close notification">✕</button>
+  </div>
+
+  <!-- AUTO-REFRESH PROGRESS BAR -->
+  <div class="refresh-bar">
+    <span id="autoRefreshLabel">Next update</span>
+    <div class="refresh-progress" aria-hidden="true">
+      <div class="refresh-fill" id="refreshFill" style="width:100%"></div>
+    </div>
+    <div class="refresh-countdown" id="refreshCountdown" role="status">30:00</div>
+  </div>
+
+  <!-- STATION CHIPS -->
+  <div class="station-scroll" id="stationScroll" role="tablist" aria-label="Monitoring stations"></div>
+
+  <!-- STAGE HERO -->
+  <div class="stage-hero">
+    <div class="stage-label" id="currentStageLabel">Current GRAP Stage</div>
+    <div class="stage-badge">
+      <div class="stage-dot" aria-hidden="true"></div>
+      <div class="stage-name" id="stageName" aria-live="polite">Loading...</div>
+    </div>
+    <div class="aqi-number" id="aqiNumber" aria-live="polite">— <span>AQI</span></div>
+    <div class="stage-desc" id="stageDesc" aria-live="polite">Fetching air quality data...</div>
+    <!-- Demo banner -->
+    <div class="demo-banner" id="demoBanner" role="status" aria-live="assertive"></div>
+    <!-- Error banner -->
+    <div class="error-banner" id="errorBanner" role="alert" aria-live="assertive">
+      <span id="errorMsg"></span>
+      <button class="retry-btn" onclick="refreshData()" id="retryBtn">Retry</button>
+    </div>
+  </div>
+
+  <!-- AQI SCALE -->
+  <div class="card" style="padding:16px 20px">
+    <div class="section-title" id="scaleTitle">AQI Scale</div>
+    <div class="scale-bar" aria-hidden="true">
+      <div class="scale-seg" style="background:#22c55e"></div>
+      <div class="scale-seg" style="background:#86efac"></div>
+      <div class="scale-seg" style="background:#facc15"></div>
+      <div class="scale-seg" style="background:#f97316"></div>
+      <div class="scale-seg" style="background:#ef4444"></div>
+      <div class="scale-seg" style="background:#7f1d1d"></div>
+    </div>
+    <div class="scale-labels" aria-hidden="true">
+      <span>0</span><span>50</span><span>100</span><span>200</span><span>300</span><span>400</span><span>500</span>
+    </div>
+    <div class="scale-category-labels" id="scaleCategoryLabels">
+      <span>Good</span><span>Satisfactory</span><span>Moderate</span><span>Poor</span><span>Very Poor</span><span>Severe</span>
+    </div>
+  </div>
+
+  <!-- HEALTH ADVISORY -->
+  <div class="card" id="healthCard">
+    <div class="section-title" id="healthTitle">Health Advisory</div>
+    <div id="healthContent"></div>
+  </div>
+
+  <!-- POLLUTANTS -->
+  <div class="grid-2" id="pollutantGrid">
+    <div class="pollutant-card"><div class="pollutant-label">PM2.5</div><div class="pollutant-value shimmer" style="height:26px;width:60px">&nbsp;</div></div>
+    <div class="pollutant-card"><div class="pollutant-label">PM10</div><div class="pollutant-value shimmer" style="height:26px;width:60px">&nbsp;</div></div>
+    <div class="pollutant-card"><div class="pollutant-label">NO₂</div><div class="pollutant-value shimmer" style="height:26px;width:60px">&nbsp;</div></div>
+    <div class="pollutant-card"><div class="pollutant-label">CO</div><div class="pollutant-value shimmer" style="height:26px;width:60px">&nbsp;</div></div>
+  </div>
+
+  <!-- AQI HISTORY CHART -->
+  <div class="card" id="chartCard">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px">
+      <div class="section-title" style="margin-bottom:0" id="chartTitle">AQI Trend</div>
+      <div class="chart-toggle">
+        <button class="active" onclick="setChartRange('24h')" id="btn24h">24H</button>
+        <button onclick="setChartRange('7d')" id="btn7d">7D</button>
+      </div>
+    </div>
+    <canvas id="aqiChart" width="400" height="160" style="width:100%; height:160px" aria-label="AQI trend chart"></canvas>
+    <div class="chart-empty" id="chartEmpty" style="display:none">Collecting data...</div>
+    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--muted); margin-top:6px; font-family:'DM Mono',monospace">
+      <span id="chartStartLabel"></span>
+      <span id="chartEndLabel"></span>
+    </div>
+  </div>
+
+  <!-- RESTRICTIONS -->
+  <div class="card" id="restrictionsCard">
+    <div class="section-title" id="restrictionsTitle">Active Restrictions</div>
+    <div id="restrictionsList"><div style="color:var(--muted);font-size:13px" id="loadingRestr">Loading...</div></div>
+  </div>
+
+  <!-- MY VEHICLES -->
+  <div class="card" id="vehiclesCard">
+    <div class="section-title" id="vehiclesTitle">My Vehicles</div>
+    <div id="vehiclesList"></div>
+    <button class="add-vehicle-btn" id="addVehicleBtn" onclick="showAddVehicleForm()" aria-label="Add vehicle">
+      <span aria-hidden="true">+</span> <span id="addVehicleBtnLabel">Add Vehicle</span>
+    </button>
+  </div>
+
+  <!-- ADD VEHICLE MODAL -->
+  <div class="vehicle-form-overlay" id="vehicleFormOverlay" role="dialog" aria-modal="true" aria-labelledby="addVehicleFormTitle">
+    <div class="vehicle-form-card">
+      <div class="section-title" id="addVehicleFormTitle">Add New Vehicle</div>
+      <div class="form-group">
+        <label class="form-label" for="vehicleNameInput">Name</label>
+        <input class="form-input" type="text" id="vehicleNameInput" placeholder="Vehicle name (e.g. My Swift)" maxlength="50"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="fuelTypeLabel">Fuel Type</label>
+        <div class="form-select-group" id="fuelTypeGroup" role="radiogroup" aria-labelledby="fuelTypeLabel"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="emissionLabel">Emission Standard</label>
+        <div class="form-select-group" id="emissionGroup" role="radiogroup" aria-labelledby="emissionLabel"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="vehicleYearInput" id="yearLabel">Year</label>
+        <input class="form-input" type="number" id="vehicleYearInput" min="1990" max="2030" placeholder="e.g. 2019"/>
+      </div>
+      <div class="form-actions">
+        <button class="btn-cancel" id="btnCancelVehicle" onclick="hideAddVehicleForm()">Cancel</button>
+        <button class="btn-save" id="btnSaveVehicle" onclick="saveVehicleForm()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS CARD -->
+  <div class="card">
+    <div class="section-title" id="settingsTitle">Settings</div>
+    <div class="notif-row">
+      <div>
+        <div class="notif-label" id="notifLabel">GRAP Alerts</div>
+        <div class="notif-sub" id="notifSub">Notify when stage changes</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="notifToggle" onchange="handleNotifToggle(this.checked)" aria-label="Enable GRAP alerts"/>
+        <div class="toggle-track"></div>
+      </label>
+    </div>
+    <div class="notif-row">
+      <div>
+        <div class="notif-label" id="autoRefLabel">Auto-Refresh (30 min)</div>
+        <div class="notif-sub" id="autoRefSub">Update in background</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="autoRefToggle" checked onchange="handleAutoRefresh(this.checked)" aria-label="Enable auto-refresh"/>
+        <div class="toggle-track"></div>
+      </label>
+    </div>
+  </div>
+
+  <!-- NCR SNAPSHOT -->
+  <div class="card">
+    <div class="section-title" id="ncrTitle">NCR Snapshot</div>
+    <div class="ncr-grid" id="ncrGrid">
+      <div class="ncr-card shimmer" style="height:70px"></div>
+      <div class="ncr-card shimmer" style="height:70px"></div>
+      <div class="ncr-card shimmer" style="height:70px"></div>
+      <div class="ncr-card shimmer" style="height:70px"></div>
+    </div>
+  </div>
+
+  <!-- REFRESH BUTTON -->
+  <button class="refresh-btn" onclick="refreshData()" aria-label="Refresh air quality data">
+    <span class="refresh-icon" aria-hidden="true">↻</span>
+    <span id="refreshBtnLabel">Refresh Data</span>
+    <span id="lastUpdated" style="font-size:11px;margin-left:auto;opacity:0.5"></span>
+  </button>
+
+  <div class="footer">
+    <span id="footerSource">Data: WAQI · CPCB · CAQM guidelines</span><br>
+    <span style="color:rgba(255,107,53,0.5)">■</span> GRAP Watch — Delhi NCR
+  </div>
+</div>
+
+<script src="js/stations.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/vehicles.js"></script>
+<script src="js/health.js"></script>
+<script src="js/chart.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
