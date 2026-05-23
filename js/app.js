@@ -419,29 +419,26 @@ function renderMain(data) {
     let body = `${s.stageNames[currentStageNum]} \u2192 ${s.stageNames[stageNum]} \u00b7 AQI ${aqi}`;
 
     // Personalized vehicle alerts
-    const isSubscribed = safeStorage.getItem('grap-subscribed') === 'true';
-    if (isSubscribed) {
-      const vehicles = typeof loadVehicles === 'function' ? loadVehicles() : [];
-      if (vehicles.length > 0) {
-        const bannedVehicles = [];
-        for (const v of vehicles) {
-          const check = isVehicleBanned(v, stageNum);
-          if (check.banned) {
-            bannedVehicles.push(v.name);
-          }
+    const vehicles = typeof loadVehicles === 'function' ? loadVehicles() : [];
+    if (vehicles.length > 0) {
+      const bannedVehicles = [];
+      for (const v of vehicles) {
+        const check = isVehicleBanned(v, stageNum);
+        if (check.banned) {
+          bannedVehicles.push(v.name);
         }
-        if (bannedVehicles.length > 0) {
-          if (lang === 'hi') {
-            body += `\n\ud83d\udea8 \u092a\u094d\u0930\u092d\u093e\u0935\u093f\u0924: ${bannedVehicles.join(', ')} \u092a\u094d\u0930\u0924\u093f\u092c\u0902\u0927\u093f\u0924 \u0939\u0948!`;
-          } else {
-            body += `\n\ud83d\udea8 Affected: ${bannedVehicles.join(', ')} is BANNED!`;
-          }
+      }
+      if (bannedVehicles.length > 0) {
+        if (lang === 'hi') {
+          body += `\n\ud83d\udea8 \u092a\u094d\u0930\u092d\u093e\u0935\u093f\u0924: ${bannedVehicles.join(', ')} \u092a\u094d\u0930\u0924\u093f\u092c\u0902\u0927\u093f\u0924 \u0939\u0948!`;
         } else {
-          if (lang === 'hi') {
-            body += `\n\u2705 \u0905\u091a\u094d\u091b\u0940 \u0916\u092c\u0930: \u0906\u092a\u0915\u0945 \u0938\u092d\u0940 \u0935\u093e\u0939\u0928 \u0905\u0928\u0941\u092e\u0924 \u0939\u0948\u0902\u0964`;
-          } else {
-            body += `\n\u2705 Good news: All your vehicles are allowed.`;
-          }
+          body += `\n\ud83d\udea8 Affected: ${bannedVehicles.join(', ')} is BANNED!`;
+        }
+      } else {
+        if (lang === 'hi') {
+          body += `\n\u2705 \u0905\u091a\u094d\u091b\u0940 \u0916\u092c\u0930: \u0906\u092a\u0915\u0945 \u0938\u092d\u0940 \u0935\u093e\u0939\u0928 \u0905\u0928\u0941\u092e\u0924 \u0939\u0948\u0902\u0964`;
+        } else {
+          body += `\n\u2705 Good news: All your vehicles are allowed.`;
         }
       }
     }
@@ -480,10 +477,10 @@ function renderMain(data) {
   // Pollutants
   const iaqi = data.iaqi || {};
   const pollutants = [
-    { key: 'pm25', label: 'PM2.5', unit: '\u00b5g/m\u00b3', max: 300 },
-    { key: 'pm10', label: 'PM10',  unit: '\u00b5g/m\u00b3', max: 500 },
-    { key: 'no2',  label: 'NO\u2082',   unit: 'ppb',   max: 200 },
-    { key: 'co',   label: 'CO',    unit: 'ppm',   max: 50  },
+    { key: 'pm25', label: 'PM2.5', unit: 'AQI', max: 500 },
+    { key: 'pm10', label: 'PM10',  unit: 'AQI', max: 500 },
+    { key: 'no2',  label: 'NO\u2082',   unit: 'AQI', max: 500 },
+    { key: 'co',   label: 'CO',    unit: 'AQI', max: 500 },
   ];
   document.getElementById('pollutantGrid').innerHTML = pollutants.map(p => {
     const val = iaqi[p.key]?.v ?? null;

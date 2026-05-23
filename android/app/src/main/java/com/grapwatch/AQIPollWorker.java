@@ -91,19 +91,17 @@ public class AQIPollWorker extends Worker {
                         + "  ·  AQI " + aqi;
                 }
 
-                // Add personalized vehicle alert if subscribed
-                boolean isSubscribed = prefs.getBoolean("grap_subscribed", false);
-                if (isSubscribed) {
-                    String vehiclesJson = prefs.getString("grap_vehicles", "[]");
-                    try {
-                        JSONArray vehicles = new JSONArray(vehiclesJson);
-                        ArrayList<String> bannedList = new ArrayList<>();
-                        for (int i = 0; i < vehicles.length(); i++) {
-                            JSONObject vehicle = vehicles.getJSONObject(i);
-                            if (isVehicleBannedInJava(vehicle, newStage)) {
-                                bannedList.add(vehicle.optString("name", "Vehicle"));
-                            }
+                // Add personalized vehicle alert when saved vehicles exist
+                String vehiclesJson = prefs.getString("grap_vehicles", "[]");
+                try {
+                    JSONArray vehicles = new JSONArray(vehiclesJson);
+                    ArrayList<String> bannedList = new ArrayList<>();
+                    for (int i = 0; i < vehicles.length(); i++) {
+                        JSONObject vehicle = vehicles.getJSONObject(i);
+                        if (isVehicleBannedInJava(vehicle, newStage)) {
+                            bannedList.add(vehicle.optString("name", "Vehicle"));
                         }
+                    }
                         if (bannedList.size() > 0) {
                             StringBuilder sb = new StringBuilder();
                             for (int i = 0; i < bannedList.size(); i++) {
@@ -122,9 +120,8 @@ public class AQIPollWorker extends Worker {
                                 body += "\n✅ Good news: All your vehicles are allowed.";
                             }
                         }
-                    } catch (Exception je) {
-                        je.printStackTrace();
-                    }
+                } catch (Exception je) {
+                    je.printStackTrace();
                 }
 
                 if (prefs.getBoolean(KEY_NOTIFICATIONS_ENABLED, false)) {

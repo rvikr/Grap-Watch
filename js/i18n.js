@@ -111,25 +111,6 @@ const STRINGS = {
     scalePoor: '\u0916\u0930\u093e\u092c',
     scaleVeryPoor: '\u092c\u0939\u0941\u0924 \u0916\u0930\u093e\u092c',
     scaleSevere: '\u0917\u0902\u092d\u0940\u0930',
-    // Subscription translations
-    premiumBadge: '\ud83d\udc51 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u092e \u0938\u0915\u094d\u0930\u093f\u092f',
-    subModalTitle: '\ud83d\udc51 \u0935\u093e\u0939\u0928 \u091f\u094d\u0930\u0948\u0915\u093f\u0902\u0917 \u0905\u0928\u0932\u094c\u0915 \u0915\u0930\u0947\u0902',
-    subModalDesc: '\u0905\u092a\u0928\u0947 \u0935\u093e\u0939\u0928 \u091c\u094b\u0921\u093c\u0928\u0947 \u0914\u0930 \u0935\u094d\u092f\u0915\u094d\u0924\u093f\u0917\u0924 \u092a\u094d\u0930\u0924\u093f\u092c\u0902\u0927 \u0914\u0930 GRAP \u092c\u0948\u0928 \u0905\u0932\u0930\u094d\u091f \u092a\u093e\u0928\u0947 \u0915\u0947 \u0932\u093f\u090f \u0932\u093e\u0910\u092b\u091f\u093e\u0907\u092e \u090f\u0915\u094d\u0938\u0947\u0938 \u0905\u0928\u0932\u094c\u0915 \u0915\u0930\u0947\u0902\u0964',
-    payUpi: 'UPI \u0915\u094d\u092f\u0942\u0906\u0930 \u0915\u094b\u0921',
-    payCard: '\u0915\u093e\u0930\u094d\u0921 \u092d\u0941\u0917\u0924\u093e\u0928',
-    scanQr: '\u092d\u0941\u0917\u0924\u093e\u0928 \u0915\u0930\u0928\u0947 \u0915\u0947 \u0932\u093f\u090f \u0907\u0938 QR \u0915\u094b\u0921 \u0915\u094b \u0938\u094d\u0915\u0942\u0928 \u0915\u0930\u0947\u0902',
-    verifyPayment: '\u092d\u0941\u0917\u0924\u093e\u0928 \u0938\u0924\u094d\u092f\u093e\u092a\u093f\u0924 \u0915\u0930\u0947\u0902',
-    verifying: '\u0938\u0924\u094d\u092f\u093e\u092a\u093f\u0924 \u0915\u093f\u092f\u093e \u091c\u093e \u0930\u0939\u093e \u0939\u0948...',
-    cardHolder: '\u0915\u093e\u0930\u094d\u0921\u0927\u093e\u0930\u0915 \u0915\u093e \u0928\u093e\u092e',
-    cardNumber: '\u0915\u093e\u0930\u094d\u0921 \u0928\u0902\u092c\u0930',
-    cardExpiry: '\u0938\u092e\u093e\u092a\u094d\u0924\u093f (MM/YY)',
-    cardCvv: '\u0938\u0940\u0935\u0940\u0935\u0940 (CVV)',
-    payNow: '\u20b999 \u0915\u093e \u092d\u0941\u0917\u0924\u093e\u0928 \u0915\u0930\u0947\u0902',
-    processing: '\u092a\u094d\u0930\u0915\u094d\u0930\u093f\u092f\u093e \u091c\u093e\u0930\u0940 \u0939\u0948...',
-    subSuccessTitle: '\u2728 \u092d\u0941\u0917\u0924\u093e\u092e \u0938\u092b\u0932!',
-    subSuccessDesc: '\u0906\u092a\u0915\u093e \u0932\u093e\u0910\u092b\u091f\u093e\u0907\u092e \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u092e \u090f\u0915\u094d\u0938\u0947\u0938 \u0905\u092c \u0938\u0915\u094d\u0930\u093f\u092f \u0939\u0948\u0964 \u0905\u092a\u0928\u0947 \u0935\u093e\u0939\u0928\u094b\u0902 \u0915\u094b \u091c\u094b\u0921\u093c\u0947\u0902\u0964',
-    btnFinishSub: '\u0936\u0941\u0930\u0942 \u0915\u0930\u0947\u0902',
-    subCancel: '\u092c\u0902\u0926 \u0915\u0930\u0947\u0902',
   },
   en: {
     appTitle: 'GRAP WATCH',
@@ -239,25 +220,6 @@ const STRINGS = {
     scalePoor: 'Poor',
     scaleVeryPoor: 'Very Poor',
     scaleSevere: 'Severe',
-    // Subscription translations
-    premiumBadge: '\ud83d\udc51 Premium Active',
-    subModalTitle: '\ud83d\udc51 Unlock Vehicle Tracking',
-    subModalDesc: 'Unlock lifetime access to add your vehicles and receive personalized restriction warnings and GRAP ban alerts.',
-    payUpi: 'UPI QR Code',
-    payCard: 'Card Payment',
-    scanQr: 'Scan this QR code to pay \u20b999',
-    verifyPayment: 'Verify Payment',
-    verifying: 'Verifying...',
-    cardHolder: 'Cardholder Name',
-    cardNumber: 'Card Number',
-    cardExpiry: 'Expiry (MM/YY)',
-    cardCvv: 'CVV',
-    payNow: 'Pay \u20b999',
-    processing: 'Processing...',
-    subSuccessTitle: '\u2728 Payment Successful!',
-    subSuccessDesc: 'Your lifetime Premium access is now active. Add your vehicles to see their restriction status.',
-    btnFinishSub: 'Get Started',
-    subCancel: 'Cancel',
   }
 };
 
@@ -292,34 +254,6 @@ function setLang(l) {
   document.getElementById('vehiclesTitle').textContent = s.vehiclesTitle;
   document.getElementById('addVehicleBtnLabel').textContent = s.addVehicleBtnLabel;
   document.getElementById('chartTitle').textContent = s.chartTitle;
-
-  // Subscription Modal elements (translate if present)
-  const subTitle = document.getElementById('subModalTitle');
-  if (subTitle) subTitle.textContent = s.subModalTitle;
-  const subDesc = document.getElementById('subModalDesc');
-  if (subDesc) subDesc.textContent = s.subModalDesc;
-  const subUpiBtn = document.getElementById('payUpiBtn');
-  if (subUpiBtn) subUpiBtn.textContent = s.payUpi;
-  const subCardBtn = document.getElementById('payCardBtn');
-  if (subCardBtn) subCardBtn.textContent = s.payCard;
-  const subScanQr = document.getElementById('scanQrLabel');
-  if (subScanQr) subScanQr.textContent = s.scanQr;
-  const subVerifyUpi = document.getElementById('btnVerifyUpi');
-  if (subVerifyUpi) subVerifyUpi.textContent = s.verifyPayment;
-  const subCardHolderLabel = document.getElementById('cardHolderLabel');
-  if (subCardHolderLabel) subCardHolderLabel.textContent = s.cardHolder;
-  const subCardNumberLabel = document.getElementById('cardNumberLabel');
-  if (subCardNumberLabel) subCardNumberLabel.textContent = s.cardNumber;
-  const subBtnPayCard = document.getElementById('btnPayCard');
-  if (subBtnPayCard) subBtnPayCard.textContent = s.payNow;
-  const subSuccessTitle = document.getElementById('subSuccessTitle');
-  if (subSuccessTitle) subSuccessTitle.textContent = s.subSuccessTitle;
-  const subSuccessDesc = document.getElementById('subSuccessDesc');
-  if (subSuccessDesc) subSuccessDesc.textContent = s.subSuccessDesc;
-  const subBtnFinish = document.getElementById('btnFinishSub');
-  if (subBtnFinish) subBtnFinish.textContent = s.btnFinishSub;
-  const subBtnCancel = document.getElementById('btnCancelSub');
-  if (subBtnCancel) subBtnCancel.textContent = s.subCancel;
 
   // AQI scale category labels
   const catLabels = document.getElementById('scaleCategoryLabels');

@@ -4,7 +4,7 @@
 //  Fixes: API proxy routing, race condition lock, offline fallback
 // ═══════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'grap-watch-v3';
+const CACHE_NAME = 'grap-watch-v4';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/styles.css', '/offline.html',
   '/js/stations.js', '/js/i18n.js', '/js/app.js',
@@ -152,29 +152,25 @@ async function backgroundAQICheck() {
       
       let bodyText = `${stageNames[prevState.stage]} → ${stageNames[newStage]}  ·  AQI ${aqi}`;
 
-      // Check premium vehicle status
+      // Check saved vehicles for personalized restriction status
       try {
-        const subRes = await cache.match('/grap-subscribed');
-        const subData = subRes ? await subRes.json() : null;
-        if (subData && subData.subscribed === true) {
-          const vehRes = await cache.match('/grap-vehicles');
-          const vehicles = vehRes ? await vehRes.json() : [];
-          if (vehicles.length > 0) {
-            const banned = [];
-            for (const v of vehicles) {
-              if (isVehicleBannedInSW(v, newStage)) {
-                banned.push(v.name);
-              }
-            }
-            if (banned.length > 0) {
-              bodyText += `\n🚨 Affected: ${banned.join(', ')} is BANNED!`;
-            } else {
-              bodyText += `\n✅ Good news: All your vehicles are allowed.`;
+        const vehRes = await cache.match('/grap-vehicles');
+        const vehicles = vehRes ? await vehRes.json() : [];
+        if (vehicles.length > 0) {
+          const banned = [];
+          for (const v of vehicles) {
+            if (isVehicleBannedInSW(v, newStage)) {
+              banned.push(v.name);
             }
           }
+          if (banned.length > 0) {
+              bodyText += `\n🚨 Affected: ${banned.join(', ')} is BANNED!`;
+          } else {
+              bodyText += `\n✅ Good news: All your vehicles are allowed.`;
+          }
         }
-      } catch (subErr) {
-        console.warn('[SW] Vehicle check failed:', subErr);
+      } catch (vehicleErr) {
+        console.warn('[SW] Vehicle check failed:', vehicleErr);
       }
 
       await self.registration.showNotification(`${emoji[newStage]} GRAP ${direction} in Delhi`, {

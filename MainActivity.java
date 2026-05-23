@@ -233,21 +233,9 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public void setSubscriptionStatus(boolean isSubscribed) {
-            SharedPreferences prefs = ctx.getSharedPreferences("grap_watch_prefs", Context.MODE_PRIVATE);
-            prefs.edit().putBoolean("grap_subscribed", isSubscribed).apply();
-        }
-
-        @JavascriptInterface
         public void saveVehicles(String json) {
             SharedPreferences prefs = ctx.getSharedPreferences("grap_watch_prefs", Context.MODE_PRIVATE);
             prefs.edit().putString("grap_vehicles", json).apply();
-        }
-
-        @JavascriptInterface
-        public boolean isSubscribed() {
-            SharedPreferences prefs = ctx.getSharedPreferences("grap_watch_prefs", Context.MODE_PRIVATE);
-            return prefs.getBoolean("grap_subscribed", false);
         }
 
         @JavascriptInterface
