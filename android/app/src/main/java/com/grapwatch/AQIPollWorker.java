@@ -1,13 +1,6 @@
-// ═══════════════════════════════════════════════════════════
-//  GRAP Watch — Background AQI Poll Worker
-//  File: app/src/main/java/com/grapwatch/AQIPollWorker.java
-//
-//  Fetches AQI from the proxy endpoint, detects GRAP stage
-//  changes, triggers notification and widget update.
-// ═══════════════════════════════════════════════════════════
-
 package com.grapwatch;
 
+import android.Manifest;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
@@ -15,8 +8,11 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
@@ -35,6 +31,7 @@ public class AQIPollWorker extends Worker {
     private static final String API_ENDPOINT = APP_URL + "/api/aqi?action=feed&param=delhi";
     private static final String PREFS_NAME = "grap_watch_prefs";
     private static final String KEY_LAST_STAGE = "last_grap_stage";
+    private static final String KEY_NOTIFICATIONS_ENABLED = "grap_notif_enabled";
     private static final String CHANNEL_ID = "grap_alerts";
 
     private static final String[] STAGE_NAMES = {
@@ -130,7 +127,9 @@ public class AQIPollWorker extends Worker {
                     }
                 }
 
-                showNotification(title, body);
+                if (prefs.getBoolean(KEY_NOTIFICATIONS_ENABLED, false)) {
+                    showNotification(title, body);
+                }
             }
 
             return Result.success();
@@ -140,7 +139,7 @@ public class AQIPollWorker extends Worker {
         }
     }
 
-    private boolean isVehicleBannedInJava(JSONObject vehicle, int stage) {
+    static boolean isVehicleBannedInJava(JSONObject vehicle, int stage) {
         String fuelType = vehicle.optString("fuelType", "");
         String emissionStd = vehicle.optString("emissionStd", "");
         
@@ -158,7 +157,7 @@ public class AQIPollWorker extends Worker {
         return false;
     }
 
-    private int getStageNumber(int aqi) {
+    static int getStageNumber(int aqi) {
         if (aqi <= 200) return 0;
         if (aqi <= 300) return 1;
         if (aqi <= 400) return 2;
@@ -197,6 +196,11 @@ public class AQIPollWorker extends Worker {
 
     private void showNotification(String title, String body) {
         Context ctx = getApplicationContext();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
 
         Intent tapIntent = new Intent(ctx, MainActivity.class);
         PendingIntent pi = PendingIntent.getActivity(ctx, 0, tapIntent,

@@ -1,19 +1,6 @@
-// ═══════════════════════════════════════════════════════════
-//  GRAP Watch — Android WebView Wrapper
-//  File: app/src/main/java/com/grapwatch/MainActivity.java
-//
-//  Features:
-//    · Full-screen WebView (no browser chrome)
-//    · JavaScript bridge for native notifications
-//    · Home screen widget via AppWidgetProvider
-//    · Back gesture / swipe-to-refresh
-//    · Offline fallback page
-// ═══════════════════════════════════════════════════════════
-
 package com.grapwatch;
 
 import android.Manifest;
-import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -27,6 +14,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
+import android.net.Uri;
 import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
@@ -38,18 +26,24 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.RemoteViews;
 import android.widget.Toast;
+import androidx.activity.ComponentActivity;
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import org.json.JSONObject;
 
-public class MainActivity extends Activity {
+public class MainActivity extends ComponentActivity {
 
     private static final String APP_URL         = "https://grap-watch.vercel.app/";
+    private static final String APP_HOST        = "grap-watch.vercel.app";
     private static final String OFFLINE_URL      = "file:///android_asset/offline.html";
     private static final String CHANNEL_ID       = "grap_alerts";
     private static final int    NOTIF_PERMISSION  = 101;
+    private static final String PREFS_NAME      = "grap_watch_prefs";
+    private static final String KEY_NOTIFICATIONS_ENABLED = "grap_notif_enabled";
 
     private WebView webView;
     private SwipeRefreshLayout swipeRefresh;
@@ -61,11 +55,11 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         createNotificationChannel();
-        requestNotifPermission();
 
         swipeRefresh = findViewById(R.id.swipeRefresh);
         webView      = findViewById(R.id.webView);
 
+        setupBackHandler();
         setupWebView();
         setupSwipeRefresh();
 
@@ -74,6 +68,8 @@ public class MainActivity extends Activity {
         } else {
             webView.loadUrl(OFFLINE_URL);
         }
+
+        schedulePeriodicAQIPoll();
     }
 
     // ── WebView Setup ─────────────────────────────────────
@@ -82,7 +78,8 @@ public class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);          // localStorage for lang pref
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setAllowFileAccessFromFileURLs(false);
+        settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setUserAgentString(
             settings.getUserAgentString() + " GRAPWatchAndroid/2.0"
@@ -97,9 +94,11 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
                 String url = req.getUrl().toString();
-                // Keep all navigation inside WebView
+                if (isTrustedAppUrl(url) || url.startsWith("file:///android_asset/")) {
+                    return false;
+                }
                 if (url.startsWith("https://") || url.startsWith("http://")) {
-                    view.loadUrl(url);
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                     return true;
                 }
                 return false;
@@ -111,8 +110,9 @@ public class MainActivity extends Activity {
                 // Inject station param from intent (widget tap deeplink)
                 String station = getIntent().getStringExtra("station");
                 if (station != null) {
+                    String quotedStation = JSONObject.quote(station);
                     view.evaluateJavascript(
-                        "if(typeof selectBySlug !== 'undefined') selectBySlug('" + station + "');",
+                        "if(typeof selectBySlug !== 'undefined') selectBySlug(" + quotedStation + ");",
                         null
                     );
                 }
@@ -123,6 +123,11 @@ public class MainActivity extends Activity {
                 if (!isOnline()) view.loadUrl(OFFLINE_URL);
             }
         });
+    }
+
+    private boolean isTrustedAppUrl(String url) {
+        Uri uri = Uri.parse(url);
+        return "https".equals(uri.getScheme()) && APP_HOST.equals(uri.getHost());
     }
 
     private void setupSwipeRefresh() {
@@ -139,10 +144,18 @@ public class MainActivity extends Activity {
     }
 
     // ── Back Button ───────────────────────────────────────
-    @Override
-    public void onBackPressed() {
-        if (webView.canGoBack()) webView.goBack();
-        else super.onBackPressed();
+    private void setupBackHandler() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (webView != null && webView.canGoBack()) {
+                    webView.goBack();
+                    return;
+                }
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+            }
+        });
     }
 
     // ── Connectivity ──────────────────────────────────────
@@ -188,6 +201,32 @@ public class MainActivity extends Activity {
         }
     }
 
+    private boolean hasNotifPermission() {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == NOTIF_PERMISSION) {
+            boolean granted = grantResults.length > 0 &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_NOTIFICATIONS_ENABLED, granted)
+                .apply();
+            if (!granted && webView != null) {
+                webView.evaluateJavascript(
+                    "try{localStorage.removeItem('grap-notif');document.getElementById('notifToggle').checked=false;}catch(e){}",
+                    null
+                );
+            }
+        }
+    }
+
     // ── JavaScript Bridge ─────────────────────────────────
     // Called from the web app: Android.showNotification(title, body)
     public class JSBridge {
@@ -196,6 +235,8 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void showNotification(String title, String body) {
+            if (!areNotificationsEnabled()) return;
+
             NotificationCompat.Builder builder = new NotificationCompat.Builder(ctx, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notif)
                 .setContentTitle(title)
@@ -228,31 +269,52 @@ public class MainActivity extends Activity {
         public boolean isAndroid() { return true; }
 
         @JavascriptInterface
+        public void requestNotificationPermission() {
+            if (hasNotifPermission()) {
+                setNotificationsEnabled(true);
+                return;
+            }
+            MainActivity.this.runOnUiThread(() -> requestNotifPermission());
+        }
+
+        @JavascriptInterface
+        public void setNotificationsEnabled(boolean enabled) {
+            SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            prefs.edit().putBoolean(KEY_NOTIFICATIONS_ENABLED, enabled && hasNotifPermission()).apply();
+        }
+
+        @JavascriptInterface
+        public boolean areNotificationsEnabled() {
+            SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            return prefs.getBoolean(KEY_NOTIFICATIONS_ENABLED, false) && hasNotifPermission();
+        }
+
+        @JavascriptInterface
         public String getLanguage() {
             return java.util.Locale.getDefault().getLanguage(); // "hi" or "en"
         }
 
         @JavascriptInterface
         public void setSubscriptionStatus(boolean isSubscribed) {
-            SharedPreferences prefs = ctx.getSharedPreferences("grap_watch_prefs", Context.MODE_PRIVATE);
+            SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             prefs.edit().putBoolean("grap_subscribed", isSubscribed).apply();
         }
 
         @JavascriptInterface
         public void saveVehicles(String json) {
-            SharedPreferences prefs = ctx.getSharedPreferences("grap_watch_prefs", Context.MODE_PRIVATE);
+            SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             prefs.edit().putString("grap_vehicles", json).apply();
         }
 
         @JavascriptInterface
         public boolean isSubscribed() {
-            SharedPreferences prefs = ctx.getSharedPreferences("grap_watch_prefs", Context.MODE_PRIVATE);
+            SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             return prefs.getBoolean("grap_subscribed", false);
         }
 
         @JavascriptInterface
         public String getVehicles() {
-            SharedPreferences prefs = ctx.getSharedPreferences("grap_watch_prefs", Context.MODE_PRIVATE);
+            SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             return prefs.getString("grap_vehicles", "[]");
         }
     }
@@ -321,121 +383,23 @@ public class MainActivity extends Activity {
 
 
     // ═══════════════════════════════════════════════════════
-    //  BACKGROUND ALARM — 30-min AQI poll
-    //  Schedule in Application.onCreate() or MainActivity.onStart()
+    //  BACKGROUND WORK — 30-min AQI poll using WorkManager
     // ═══════════════════════════════════════════════════════
-    public static class AQIAlarmReceiver extends BroadcastReceiver {
-        public static final String ACTION = "com.grapwatch.CHECK_AQI";
+    private void schedulePeriodicAQIPoll() {
+        androidx.work.PeriodicWorkRequest workRequest =
+            new androidx.work.PeriodicWorkRequest.Builder(
+                AQIPollWorker.class,
+                30, java.util.concurrent.TimeUnit.MINUTES
+            )
+            .setConstraints(new androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .build())
+            .build();
 
-        @Override
-        public void onReceive(Context ctx, Intent intent) {
-            // TODO: Create AQIFetchService as a ForegroundService or use WorkManager
-            //   to hit the WAQI API, update widget, and trigger notification if stage changed.
-            //   Example: Intent serviceIntent = new Intent(ctx, AQIFetchService.class);
-            //            ctx.startForegroundService(serviceIntent);
-            androidx.work.OneTimeWorkRequest workRequest =
-                new androidx.work.OneTimeWorkRequest.Builder(AQIPollWorker.class).build();
-            androidx.work.WorkManager.getInstance(ctx).enqueue(workRequest);
-        }
-
-        /** Call this from MainActivity.onStart() to arm the alarm */
-        public static void schedule(Context ctx) {
-            AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
-            Intent i = new Intent(ctx, AQIAlarmReceiver.class).setAction(ACTION);
-            PendingIntent pi = PendingIntent.getBroadcast(ctx, 0, i,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-
-            // Repeating every 30 minutes (1_800_000 ms)
-            am.setInexactRepeating(
-                AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + 30 * 60 * 1000,
-                30 * 60 * 1000,
-                pi
-            );
-        }
+        androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "AQIPollWork",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        );
     }
 }
-
-/*
-─────────────────────────────────────────────────────────────
-  res/layout/activity_main.xml
-─────────────────────────────────────────────────────────────
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/swipeRefresh"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
-    <WebView
-        android:id="@+id/webView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
-
-</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
-
-─────────────────────────────────────────────────────────────
-  res/layout/widget_grap.xml
-─────────────────────────────────────────────────────────────
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_root"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/widget_bg"
-    android:orientation="vertical"
-    android:padding="12dp"
-    android:gravity="center">
-
-    <TextView android:id="@+id/widget_aqi"
-        android:textSize="40sp" android:textColor="#ff6b35"
-        android:textStyle="bold" android:gravity="center"
-        android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-
-    <TextView android:id="@+id/widget_stage"
-        android:textSize="11sp" android:textColor="#aaaaaa"
-        android:gravity="center"
-        android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-
-    <TextView android:id="@+id/widget_time"
-        android:textSize="9sp" android:textColor="#555555"
-        android:gravity="center" android:layout_marginTop="4dp"
-        android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-</LinearLayout>
-
-─────────────────────────────────────────────────────────────
-  res/xml/grap_widget_info.xml
-─────────────────────────────────────────────────────────────
-<?xml version="1.0" encoding="utf-8"?>
-<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="110dp"
-    android:minHeight="110dp"
-    android:updatePeriodMillis="1800000"
-    android:initialLayout="@layout/widget_grap"
-    android:resizeMode="horizontal|vertical"
-    android:widgetCategory="home_screen"
-    android:description="@string/widget_description"/>
-
-─────────────────────────────────────────────────────────────
-  AndroidManifest.xml additions
-─────────────────────────────────────────────────────────────
-<uses-permission android:name="android.permission.INTERNET"/>
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
-
-<receiver android:name=".MainActivity$GRAPWidget" android:exported="true">
-    <intent-filter>
-        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
-    </intent-filter>
-    <meta-data android:name="android.appwidget.provider"
-        android:resource="@xml/grap_widget_info"/>
-</receiver>
-
-<receiver android:name=".MainActivity$AQIAlarmReceiver" android:exported="false">
-    <intent-filter>
-        <action android:name="com.grapwatch.CHECK_AQI"/>
-        <action android:name="android.intent.action.BOOT_COMPLETED"/>
-    </intent-filter>
-</receiver>
-*/

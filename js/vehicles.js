@@ -48,6 +48,47 @@ function loadVehicles() {
 
 function saveVehicles(list) {
   safeStorage.setItem('grap-vehicles', JSON.stringify(list));
+  // Sync to service worker cache
+  if ('caches' in window) {
+    caches.open('grap-watch-v3').then(cache => {
+      cache.put('/grap-vehicles', new Response(JSON.stringify(list), {
+        headers: { 'Content-Type': 'application/json' }
+      }));
+    }).catch(err => console.warn('[Cache] Vehicle sync failed:', err));
+  }
+  // Sync to Android bridge
+  if (window.Android && typeof window.Android.saveVehicles === 'function') {
+    window.Android.saveVehicles(JSON.stringify(list));
+  }
+}
+
+function syncSubscription(status) {
+  safeStorage.setItem('grap-subscribed', status ? 'true' : 'false');
+  if ('caches' in window) {
+    caches.open('grap-watch-v3').then(cache => {
+      cache.put('/grap-subscribed', new Response(JSON.stringify({ subscribed: status }), {
+        headers: { 'Content-Type': 'application/json' }
+      }));
+    }).catch(err => console.warn('[Cache] Sub sync failed:', err));
+  }
+  if (window.Android && typeof window.Android.setSubscriptionStatus === 'function') {
+    window.Android.setSubscriptionStatus(status);
+  }
+}
+
+function syncWithNativeBridge() {
+  if (window.Android) {
+    if (typeof window.Android.isSubscribed === 'function') {
+      const isSub = window.Android.isSubscribed();
+      safeStorage.setItem('grap-subscribed', isSub ? 'true' : 'false');
+    }
+    if (typeof window.Android.getVehicles === 'function') {
+      const vStr = window.Android.getVehicles();
+      if (vStr) {
+        safeStorage.setItem('grap-vehicles', vStr);
+      }
+    }
+  }
 }
 
 function addVehicle(vehicle) {
@@ -142,10 +183,76 @@ function saveVehicleForm() {
   renderVehiclesCard(currentStageNum);
 }
 
+// ─── SUBSCRIPTION MODAL CONTROLLERS ───
+function showSubscriptionModal() {
+  const overlay = document.getElementById('subModalOverlay');
+  overlay.classList.add('show');
+  document.getElementById('subMainCard').style.display = 'block';
+  document.getElementById('subSuccessCard').style.display = 'none';
+  selectPaymentMethod('upi');
+  
+  // Reset payment states
+  const s = STRINGS[lang];
+  document.getElementById('btnVerifyUpi').disabled = false;
+  document.getElementById('btnVerifyUpi').textContent = s.verifyPayment;
+  document.getElementById('btnPayCard').disabled = false;
+  document.getElementById('btnPayCard').textContent = s.payNow;
+}
+
+function hideSubscriptionModal() {
+  document.getElementById('subModalOverlay').classList.remove('show');
+}
+
+function selectPaymentMethod(method) {
+  document.querySelectorAll('.pay-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.id === (method === 'upi' ? 'payUpiBtn' : 'payCardBtn'));
+  });
+  document.getElementById('upiPaymentView').classList.toggle('active', method === 'upi');
+  document.getElementById('cardPaymentView').classList.toggle('active', method === 'card');
+}
+
+function simulatePaymentProcess(method) {
+  const s = STRINGS[lang];
+  if (method === 'upi') {
+    const btn = document.getElementById('btnVerifyUpi');
+    btn.disabled = true;
+    btn.textContent = s.verifying;
+    setTimeout(() => {
+      showSubSuccess();
+    }, 2000);
+  } else {
+    const btn = document.getElementById('btnPayCard');
+    btn.disabled = true;
+    btn.textContent = s.processing;
+    setTimeout(() => {
+      showSubSuccess();
+    }, 2000);
+  }
+}
+
+function showSubSuccess() {
+  document.getElementById('subMainCard').style.display = 'none';
+  document.getElementById('subSuccessCard').style.display = 'block';
+}
+
+function activateSubscription() {
+  syncSubscription(true);
+  hideSubscriptionModal();
+  renderVehiclesCard(currentStageNum);
+  // Re-open form
+  showAddVehicleForm();
+}
+
 function renderVehiclesCard(grapStage) {
   const el = document.getElementById('vehiclesList');
   if (!el) return;
 
+  const badgeEl = document.getElementById('vehiclesPremiumBadge');
+  if (badgeEl) {
+    badgeEl.style.display = 'none';
+  }
+
+  syncWithNativeBridge();
   const vehicles = loadVehicles();
   const s = STRINGS[lang];
 

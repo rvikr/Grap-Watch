@@ -149,8 +149,36 @@ async function backgroundAQICheck() {
       const stageNames = ['No GRAP', 'Stage I', 'Stage II', 'Stage III', 'Stage IV'];
       const emoji = ['✅', '⚠️', '🟠', '🔴', '🚨'];
       const direction = newStage > prevState.stage ? 'worsened' : 'improved';
+      
+      let bodyText = `${stageNames[prevState.stage]} → ${stageNames[newStage]}  ·  AQI ${aqi}`;
+
+      // Check premium vehicle status
+      try {
+        const subRes = await cache.match('/grap-subscribed');
+        const subData = subRes ? await subRes.json() : null;
+        if (subData && subData.subscribed === true) {
+          const vehRes = await cache.match('/grap-vehicles');
+          const vehicles = vehRes ? await vehRes.json() : [];
+          if (vehicles.length > 0) {
+            const banned = [];
+            for (const v of vehicles) {
+              if (isVehicleBannedInSW(v, newStage)) {
+                banned.push(v.name);
+              }
+            }
+            if (banned.length > 0) {
+              bodyText += `\n🚨 Affected: ${banned.join(', ')} is BANNED!`;
+            } else {
+              bodyText += `\n✅ Good news: All your vehicles are allowed.`;
+            }
+          }
+        }
+      } catch (subErr) {
+        console.warn('[SW] Vehicle check failed:', subErr);
+      }
+
       await self.registration.showNotification(`${emoji[newStage]} GRAP ${direction} in Delhi`, {
-        body: `${stageNames[prevState.stage]} → ${stageNames[newStage]}  ·  AQI ${aqi}`,
+        body: bodyText,
         icon: '/icon-192.png',
         badge: '/badge-72.png',
         tag: 'grap-stage-change',
@@ -172,4 +200,34 @@ function getStageNumber(aqi) {
   if (aqi <= 400) return 2;
   if (aqi <= 450) return 3;
   return 4;
+}
+
+const VEHICLE_RULES = {
+  3: [
+    { fuelType: 'petrol', emissionStd: 'BS-III' },
+    { fuelType: 'diesel', emissionStd: 'BS-IV' },
+    { fuelType: 'diesel', emissionStd: 'BS-III' },
+  ],
+  4: [
+    { fuelType: 'petrol', emissionStd: 'BS-III' },
+    { fuelType: 'diesel', emissionStd: 'BS-IV' },
+    { fuelType: 'diesel', emissionStd: 'BS-III' },
+  ]
+};
+
+function isVehicleBannedInSW(vehicle, grapStage) {
+  if (vehicle.fuelType === 'electric' || vehicle.emissionStd === 'electric') {
+    return false;
+  }
+  const rules = VEHICLE_RULES[grapStage] || [];
+  for (const rule of rules) {
+    if (rule.fuelType === vehicle.fuelType && rule.emissionStd === vehicle.emissionStd) {
+      return true;
+    }
+  }
+  if (grapStage >= 4 && vehicle.fuelType === 'diesel' &&
+      ['BS-II', 'BS-III', 'BS-IV'].includes(vehicle.emissionStd)) {
+    return true;
+  }
+  return false;
 }

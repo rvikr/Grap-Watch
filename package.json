@@ -1,0 +1,11 @@
+{
+  "name": "grap-watch",
+  "version": "1.0.0",
+  "description": "GRAP Watch — Delhi NCR Air Quality & Restriction alerts",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {}
+}

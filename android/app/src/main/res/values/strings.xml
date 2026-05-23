@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Grap Watch</string>
+    <string name="widget_description">Displays the current Delhi AQI and GRAP stage.</string>
+</resources>

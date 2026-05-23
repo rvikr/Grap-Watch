@@ -87,8 +87,16 @@ function isStandalonePWA() {
     window.navigator.standalone === true;
 }
 
+function isNativeAndroid() {
+  try {
+    return !!(window.Android && typeof window.Android.isAndroid === 'function' && window.Android.isAndroid());
+  } catch {
+    return false;
+  }
+}
+
 function notificationsSupported() {
-  return 'Notification' in window;
+  return isNativeAndroid() || 'Notification' in window;
 }
 
 // ─── NOTIFICATIONS ────────────────────────────────────────
@@ -97,12 +105,28 @@ function handleNotifToggle(enabled) {
     requestNotificationPermission();
   } else {
     safeStorage.removeItem('grap-notif');
+    if (isNativeAndroid() && typeof window.Android.setNotificationsEnabled === 'function') {
+      window.Android.setNotificationsEnabled(false);
+    }
   }
 }
 
 async function requestNotificationPermission() {
   const s = STRINGS[lang];
   const toggle = document.getElementById('notifToggle');
+
+  if (isNativeAndroid()) {
+    safeStorage.setItem('grap-notif', '1');
+    toggle.checked = true;
+    document.getElementById('notifToast').classList.remove('show');
+    if (typeof window.Android.setNotificationsEnabled === 'function') {
+      window.Android.setNotificationsEnabled(true);
+    }
+    if (typeof window.Android.requestNotificationPermission === 'function') {
+      window.Android.requestNotificationPermission();
+    }
+    return;
+  }
 
   if (isIOS() && !isStandalonePWA()) {
     toggle.checked = false;
@@ -148,6 +172,21 @@ function showIOSInstallGuide(message) {
 }
 
 function maybeShowNotifPrompt() {
+  if (isNativeAndroid()) {
+    let enabled = safeStorage.getItem('grap-notif') === '1';
+    if (typeof window.Android.areNotificationsEnabled === 'function') {
+      enabled = window.Android.areNotificationsEnabled();
+      if (enabled) safeStorage.setItem('grap-notif', '1');
+    }
+    document.getElementById('notifToggle').checked = enabled;
+    if (!enabled) {
+      setTimeout(() => {
+        document.getElementById('notifToast').classList.add('show');
+      }, 3000);
+    }
+    return;
+  }
+
   if (isIOS() && !isStandalonePWA()) return;
   if (!notificationsSupported()) return;
 
@@ -161,6 +200,22 @@ function maybeShowNotifPrompt() {
 }
 
 async function localNotify(title, body) {
+  if (window.Android && typeof window.Android.showNotification === 'function') {
+    if (typeof window.Android.areNotificationsEnabled === 'function' &&
+        !window.Android.areNotificationsEnabled()) {
+      return;
+    }
+    window.Android.showNotification(title, body);
+    return;
+  }
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.iOSBridge) {
+    window.webkit.messageHandlers.iOSBridge.postMessage({
+      action: 'showNotification',
+      title: title,
+      body: body
+    });
+    return;
+  }
   if (!notificationsSupported()) return;
   if (Notification.permission !== 'granted') return;
   if ('serviceWorker' in navigator) {
@@ -361,10 +416,55 @@ function renderMain(data) {
       ? (lang === 'hi' ? '\u092c\u093f\u0917\u0921\u093c\u093e' : 'worsened')
       : (lang === 'hi' ? '\u0938\u0941\u0927\u0930\u093e' : 'improved');
     const title = `${['\u2705','\u26a0\ufe0f','\ud83d\udfe0','\ud83d\udd34','\ud83d\udea8'][stageNum]} GRAP ${dir}`;
-    const body = `${s.stageNames[currentStageNum]} \u2192 ${s.stageNames[stageNum]} \u00b7 AQI ${aqi}`;
-    localNotify(title, body);
+    let body = `${s.stageNames[currentStageNum]} \u2192 ${s.stageNames[stageNum]} \u00b7 AQI ${aqi}`;
+
+    // Personalized vehicle alerts
+    const isSubscribed = safeStorage.getItem('grap-subscribed') === 'true';
+    if (isSubscribed) {
+      const vehicles = typeof loadVehicles === 'function' ? loadVehicles() : [];
+      if (vehicles.length > 0) {
+        const bannedVehicles = [];
+        for (const v of vehicles) {
+          const check = isVehicleBanned(v, stageNum);
+          if (check.banned) {
+            bannedVehicles.push(v.name);
+          }
+        }
+        if (bannedVehicles.length > 0) {
+          if (lang === 'hi') {
+            body += `\n\ud83d\udea8 \u092a\u094d\u0930\u092d\u093e\u0935\u093f\u0924: ${bannedVehicles.join(', ')} \u092a\u094d\u0930\u0924\u093f\u092c\u0902\u0927\u093f\u0924 \u0939\u0948!`;
+          } else {
+            body += `\n\ud83d\udea8 Affected: ${bannedVehicles.join(', ')} is BANNED!`;
+          }
+        } else {
+          if (lang === 'hi') {
+            body += `\n\u2705 \u0905\u091a\u094d\u091b\u0940 \u0916\u092c\u0930: \u0906\u092a\u0915\u0945 \u0938\u092d\u0940 \u0935\u093e\u0939\u0928 \u0905\u0928\u0941\u092e\u0924 \u0939\u0948\u0902\u0964`;
+          } else {
+            body += `\n\u2705 Good news: All your vehicles are allowed.`;
+          }
+        }
+      }
+    }
+
+    let alertsEnabled = safeStorage.getItem('grap-notif') === '1';
+    if (isNativeAndroid() && typeof window.Android.areNotificationsEnabled === 'function') {
+      alertsEnabled = window.Android.areNotificationsEnabled();
+    }
+    if (alertsEnabled) localNotify(title, body);
   }
   currentStageNum = stageNum;
+
+  // Native widget integration
+  if (window.Android && typeof window.Android.updateWidget === 'function') {
+    window.Android.updateWidget(aqi, s.stageNames[stageNum], GRAP_COLORS[stageNum].color);
+  } else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.iOSBridge) {
+    window.webkit.messageHandlers.iOSBridge.postMessage({
+      action: 'updateWidget',
+      aqi: aqi,
+      stageName: s.stageNames[stageNum],
+      stageColor: GRAP_COLORS[stageNum].color
+    });
+  }
 
   document.documentElement.style.setProperty('--stage-color', color);
   document.documentElement.style.setProperty('--stage-glow', glow);
@@ -495,6 +595,7 @@ function initKeyboardNav() {
 
 // ─── INIT ─────────────────────────────────────────────────
 function init() {
+  if (typeof syncWithNativeBridge === 'function') syncWithNativeBridge();
   setLang(lang);
   loadDemoData();
   loadStation(0);
