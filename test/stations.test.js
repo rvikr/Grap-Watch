@@ -8,12 +8,17 @@ const source = fs.readFileSync(stationsPath, 'utf8');
 const { STATIONS, NCR_CITIES } = vm.runInNewContext(`${source}\n;({ STATIONS, NCR_CITIES });`, {});
 
 const expectedSlugs = new Map([
-  ['Delhi', 'A10111'],
-  ['Anand Vihar', 'A2553'],
+  ['New Delhi', 'A10111'],
   ['Noida', 'A11863'],
   ['Gurugram', 'A12816'],
   ['Faridabad', 'A12813'],
 ]);
+
+assert.deepStrictEqual(
+  Array.from(STATIONS, (station) => station.nameEn),
+  Array.from(expectedSlugs.keys()),
+  'Station chips should only show New Delhi, Noida, Gurugram, and Faridabad'
+);
 
 for (const [name, slug] of expectedSlugs) {
   const station = STATIONS.find((item) => item.nameEn === name);

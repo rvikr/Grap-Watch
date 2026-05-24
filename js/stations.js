@@ -11,8 +11,7 @@ const GRAP_COLORS = [
 ];
 
 const STATIONS = [
-  { nameHi: '\u0926\u093f\u0932\u094d\u0932\u0940',     nameEn: 'Delhi',      slug: 'A10111' },
-  { nameHi: '\u0906\u0928\u0902\u0926 \u0935\u093f\u0939\u093e\u0930', nameEn: 'Anand Vihar', slug: 'A2553' },
+  { nameHi: '\u0928\u0908 \u0926\u093f\u0932\u094d\u0932\u0940', nameEn: 'New Delhi', slug: 'A10111' },
   { nameHi: '\u0928\u094b\u090f\u0921\u093e',      nameEn: 'Noida',       slug: 'A11863' },
   { nameHi: '\u0917\u0941\u0930\u0941\u0917\u094d\u0930\u093e\u092e',  nameEn: 'Gurugram',    slug: 'A12816' },
   { nameHi: '\u092b\u0930\u0940\u0926\u093e\u092c\u093e\u0926',   nameEn: 'Faridabad',   slug: 'A12813' },
