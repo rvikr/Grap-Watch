@@ -11,11 +11,11 @@ const GRAP_COLORS = [
 ];
 
 const STATIONS = [
-  { nameHi: '\u0926\u093f\u0932\u094d\u0932\u0940',     nameEn: 'Delhi',      slug: 'delhi' },
-  { nameHi: '\u0906\u0928\u0902\u0926 \u0935\u093f\u0939\u093e\u0930', nameEn: 'Anand Vihar', slug: 'A245' },
-  { nameHi: '\u0928\u094b\u090f\u0921\u093e',      nameEn: 'Noida',       slug: 'A316' },
-  { nameHi: '\u0917\u0941\u0930\u0941\u0917\u094d\u0930\u093e\u092e',  nameEn: 'Gurugram',    slug: 'A311' },
-  { nameHi: '\u092b\u0930\u0940\u0926\u093e\u092c\u093e\u0926',   nameEn: 'Faridabad',   slug: 'A314' },
+  { nameHi: '\u0926\u093f\u0932\u094d\u0932\u0940',     nameEn: 'Delhi',      slug: 'A10111' },
+  { nameHi: '\u0906\u0928\u0902\u0926 \u0935\u093f\u0939\u093e\u0930', nameEn: 'Anand Vihar', slug: 'A2553' },
+  { nameHi: '\u0928\u094b\u090f\u0921\u093e',      nameEn: 'Noida',       slug: 'A11863' },
+  { nameHi: '\u0917\u0941\u0930\u0941\u0917\u094d\u0930\u093e\u092e',  nameEn: 'Gurugram',    slug: 'A12816' },
+  { nameHi: '\u092b\u0930\u0940\u0926\u093e\u092c\u093e\u0926',   nameEn: 'Faridabad',   slug: 'A12813' },
 ];
 
-const NCR_CITIES = STATIONS.filter(s => ['delhi','A316','A311','A314'].includes(s.slug));
+const NCR_CITIES = STATIONS.filter(s => ['A10111','A11863','A12816','A12813'].includes(s.slug));

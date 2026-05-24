@@ -87,6 +87,10 @@ function isStandalonePWA() {
     window.navigator.standalone === true;
 }
 
+function isNativeIOS() {
+  return !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.iOSBridge);
+}
+
 function isNativeAndroid() {
   try {
     return !!(window.Android && typeof window.Android.isAndroid === 'function' && window.Android.isAndroid());
@@ -96,7 +100,7 @@ function isNativeAndroid() {
 }
 
 function notificationsSupported() {
-  return isNativeAndroid() || 'Notification' in window;
+  return isNativeAndroid() || isNativeIOS() || 'Notification' in window;
 }
 
 // ─── NOTIFICATIONS ────────────────────────────────────────
@@ -125,6 +129,16 @@ async function requestNotificationPermission() {
     if (typeof window.Android.requestNotificationPermission === 'function') {
       window.Android.requestNotificationPermission();
     }
+    return;
+  }
+
+  if (isNativeIOS()) {
+    safeStorage.setItem('grap-notif', '1');
+    toggle.checked = true;
+    document.getElementById('notifToast').classList.remove('show');
+    window.webkit.messageHandlers.iOSBridge.postMessage({
+      action: 'requestNotificationPermission'
+    });
     return;
   }
 

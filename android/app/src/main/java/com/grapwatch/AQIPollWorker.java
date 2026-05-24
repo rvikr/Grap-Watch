@@ -1,6 +1,7 @@
 package com.grapwatch;
 
 import android.Manifest;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
@@ -12,6 +13,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
@@ -28,7 +30,7 @@ import java.net.URL;
 public class AQIPollWorker extends Worker {
 
     private static final String APP_URL = "https://grap-watch.vercel.app";
-    private static final String API_ENDPOINT = APP_URL + "/api/aqi?action=feed&param=delhi";
+    private static final String DEFAULT_FEED_PARAM = "@10111";
     private static final String PREFS_NAME = "grap_watch_prefs";
     private static final String KEY_LAST_STAGE = "last_grap_stage";
     private static final String KEY_NOTIFICATIONS_ENABLED = "grap_notif_enabled";
@@ -48,12 +50,20 @@ public class AQIPollWorker extends Worker {
         super(context, params);
     }
 
+    static String getDefaultFeedParam() {
+        return DEFAULT_FEED_PARAM;
+    }
+
+    private static String getApiEndpoint() {
+        return APP_URL + "/api/aqi?action=feed&param=" + DEFAULT_FEED_PARAM;
+    }
+
     @NonNull
     @Override
     public Result doWork() {
         try {
             // Fetch AQI data from proxy
-            String json = fetchUrl(API_ENDPOINT);
+            String json = fetchUrl(getApiEndpoint());
             if (json == null) return Result.retry();
 
             JSONObject root = new JSONObject(json);
@@ -198,6 +208,11 @@ public class AQIPollWorker extends Worker {
                     != PackageManager.PERMISSION_GRANTED) {
             return;
         }
+        if (!NotificationManagerCompat.from(ctx).areNotificationsEnabled()) {
+            return;
+        }
+
+        createNotificationChannel(ctx);
 
         Intent tapIntent = new Intent(ctx, MainActivity.class);
         PendingIntent pi = PendingIntent.getActivity(ctx, 0, tapIntent,
@@ -207,6 +222,7 @@ public class AQIPollWorker extends Worker {
             .setSmallIcon(R.drawable.ic_notif)
             .setContentTitle(title)
             .setContentText(body)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setVibrate(new long[]{0, 300, 100, 300})
@@ -214,6 +230,19 @@ public class AQIPollWorker extends Worker {
 
         NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
         nm.notify(2, builder.build());
+    }
+
+    private static void createNotificationChannel(Context ctx) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID, "GRAP Alerts", NotificationManager.IMPORTANCE_HIGH
+            );
+            channel.setDescription("Notifies when GRAP stage changes in Delhi NCR");
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 200, 100, 200});
+            NotificationManager nm = ctx.getSystemService(NotificationManager.class);
+            nm.createNotificationChannel(channel);
+        }
     }
 
     private void updateWidget(int aqi, int stage) {

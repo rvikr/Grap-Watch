@@ -34,6 +34,11 @@ public class AQIPollWorkerTest {
         assertEquals(4, AQIPollWorker.getStageNumber(500));
     }
 
+    @Test
+    public void testDefaultPollFeedUsesExplicitDelhiStation() {
+        assertEquals("@10111", AQIPollWorker.getDefaultFeedParam());
+    }
+
     private JSONObject createVehicle(String name, String fuelType, String emissionStd) throws JSONException {
         JSONObject json = new JSONObject();
         json.put("name", name);

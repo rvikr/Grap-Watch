@@ -32,7 +32,8 @@ import java.net.URL;
 public class AQIPollWorker extends Worker {
 
     private static final String APP_URL = "https://grap-watch.vercel.app";
-    private static final String API_ENDPOINT = APP_URL + "/api/aqi?action=feed&param=delhi";
+    private static final String DEFAULT_FEED_PARAM = "@10111";
+    private static final String API_ENDPOINT = APP_URL + "/api/aqi?action=feed&param=" + DEFAULT_FEED_PARAM;
     private static final String PREFS_NAME = "grap_watch_prefs";
     private static final String KEY_LAST_STAGE = "last_grap_stage";
     private static final String CHANNEL_ID = "grap_alerts";

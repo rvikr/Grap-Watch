@@ -3,7 +3,7 @@ import WebKit
 import Network
 import UserNotifications
 
-class ViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHandler {
+class ViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHandler, UNUserNotificationCenterDelegate {
     
     var webView: WKWebView!
     var refreshControl: UIRefreshControl!
@@ -12,6 +12,7 @@ class ViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHan
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        UNUserNotificationCenter.current().delegate = self
         setupWebView()
         setupRefreshControl()
         setupNetworkMonitor()
@@ -110,6 +111,8 @@ class ViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHan
             if let title = body["title"] as? String, let text = body["body"] as? String {
                 triggerLocalNotification(title: title, body: text)
             }
+        case "requestNotificationPermission":
+            requestNotificationPermission()
         case "updateWidget":
             if let aqi = body["aqi"] as? Int,
                let stageName = body["stageName"] as? String,
@@ -138,6 +141,16 @@ class ViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHan
         
         UNUserNotificationCenter.current().add(request)
         print("Triggered iOS local notification: \(title) - \(body)")
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        if #available(iOS 14.0, *) {
+            completionHandler([.banner, .list, .sound])
+        } else {
+            completionHandler([.alert, .sound])
+        }
     }
     
     private func showToast(message: String) {

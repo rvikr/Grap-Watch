@@ -31,6 +31,7 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import org.json.JSONObject;
@@ -193,18 +194,22 @@ public class MainActivity extends ComponentActivity {
 
     private void requestNotifPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED) {
+            if (!hasRuntimeNotifPermission()) {
                 ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIF_PERMISSION);
             }
         }
     }
 
-    private boolean hasNotifPermission() {
+    private boolean hasRuntimeNotifPermission() {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                 == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean hasNotifPermission() {
+        return hasRuntimeNotifPermission() &&
+            NotificationManagerCompat.from(this).areNotificationsEnabled();
     }
 
     @Override
@@ -241,6 +246,7 @@ public class MainActivity extends ComponentActivity {
                 .setSmallIcon(R.drawable.ic_notif)
                 .setContentTitle(title)
                 .setContentText(body)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .setVibrate(new long[]{0, 200, 100, 200})
@@ -270,11 +276,13 @@ public class MainActivity extends ComponentActivity {
 
         @JavascriptInterface
         public void requestNotificationPermission() {
-            if (hasNotifPermission()) {
-                setNotificationsEnabled(true);
-                return;
-            }
-            MainActivity.this.runOnUiThread(() -> requestNotifPermission());
+            MainActivity.this.runOnUiThread(() -> {
+                if (hasRuntimeNotifPermission()) {
+                    setNotificationsEnabled(true);
+                    return;
+                }
+                requestNotifPermission();
+            });
         }
 
         @JavascriptInterface
