@@ -10,11 +10,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -30,6 +32,10 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import org.json.JSONObject;
 
@@ -42,6 +48,18 @@ public class MainActivity extends ComponentActivity {
     private static final int    NOTIF_PERMISSION  = 101;
     private static final String PREFS_NAME      = "grap_watch_prefs";
     private static final String KEY_NOTIFICATIONS_ENABLED = "grap_notif_enabled";
+    private static final int BACKGROUND_COLOR = Color.rgb(10, 12, 16);
+    private static final int BORDER_COLOR = Color.rgb(30, 35, 48);
+    private static final String REFRESH_SCRIPT =
+        "(function(){"
+            + "var done=function(){try{Android.refreshComplete();}catch(e){}};"
+            + "try{"
+            + "if(typeof refreshData!=='function'){done();return;}"
+            + "var result=refreshData();"
+            + "if(result&&typeof result.then==='function'){result.then(done).catch(done);}"
+            + "else{done();}"
+            + "}catch(e){done();}"
+            + "})();";
 
     private WebView webView;
     private SwipeRefreshLayout swipeRefresh;
@@ -50,6 +68,7 @@ public class MainActivity extends ComponentActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        configureSystemBars();
         setContentView(R.layout.activity_main);
 
         createNotificationChannel();
@@ -57,6 +76,7 @@ public class MainActivity extends ComponentActivity {
         swipeRefresh = findViewById(R.id.swipeRefresh);
         webView      = findViewById(R.id.webView);
 
+        applySystemBarInsets();
         setupBackHandler();
         setupWebView();
         setupSwipeRefresh();
@@ -67,6 +87,25 @@ public class MainActivity extends ComponentActivity {
             webView.loadUrl(OFFLINE_URL);
         }
 
+    }
+
+    private void configureSystemBars() {
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(BACKGROUND_COLOR);
+        getWindow().setNavigationBarColor(BACKGROUND_COLOR);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            getWindow().setNavigationBarDividerColor(BORDER_COLOR);
+        }
+    }
+
+    private void applySystemBarInsets() {
+        View root = findViewById(R.id.swipeRefresh);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(root);
     }
 
     // ── WebView Setup ─────────────────────────────────────
@@ -130,9 +169,17 @@ public class MainActivity extends ComponentActivity {
     private void setupSwipeRefresh() {
         swipeRefresh.setColorSchemeColors(0xFFff6b35);
         swipeRefresh.setProgressBackgroundColorSchemeColor(0xFF12151c);
+        swipeRefresh.setOnChildScrollUpCallback((parent, child) ->
+            webView != null && webView.getScrollY() > 0
+        );
         swipeRefresh.setOnRefreshListener(() -> {
             if (isOnline()) {
-                webView.evaluateJavascript("refreshData();", null);
+                webView.evaluateJavascript(REFRESH_SCRIPT, null);
+                swipeRefresh.postDelayed(() -> {
+                    if (swipeRefresh != null && swipeRefresh.isRefreshing()) {
+                        swipeRefresh.setRefreshing(false);
+                    }
+                }, 15000);
             } else {
                 swipeRefresh.setRefreshing(false);
                 Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
@@ -286,6 +333,15 @@ public class MainActivity extends ComponentActivity {
             intent.putExtra("stageName", stageName);
             intent.putExtra("stageColor", stageColor);
             ctx.sendBroadcast(intent);
+        }
+
+        @JavascriptInterface
+        public void refreshComplete() {
+            MainActivity.this.runOnUiThread(() -> {
+                if (swipeRefresh != null) {
+                    swipeRefresh.setRefreshing(false);
+                }
+            });
         }
 
         @JavascriptInterface

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node test/stations.test.js && node test/cache.test.js && node test/android-bridge-contract.test.js && node test/android-background-polling.test.js"
+    "test": "node test/stations.test.js && node test/cache.test.js && node test/android-bridge-contract.test.js && node test/android-background-polling.test.js && node test/android-webview-behavior.test.js"
   },
   "dependencies": {}
 }

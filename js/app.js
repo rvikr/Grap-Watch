@@ -609,9 +609,11 @@ function loadDemoData() {
 }
 
 function refreshData() {
-  loadStation(currentStation);
-  loadNcr();
   resetCountdown();
+  return Promise.allSettled([
+    loadStation(currentStation),
+    loadNcr()
+  ]);
 }
 
 // ─── KEYBOARD NAVIGATION ─────────────────────────────────
