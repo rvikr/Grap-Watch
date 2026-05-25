@@ -4,11 +4,11 @@
 //  Fixes: API proxy routing, race condition lock, offline fallback
 // ═══════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'grap-watch-v6';
+const CACHE_NAME = 'grap-watch-v7';
 const ASSETS = [
   '/', '/index.html', '/manifest.json', '/styles.css', '/offline.html',
   '/js/stations.js?v=6', '/js/i18n.js', '/js/app.js',
-  '/js/vehicles.js', '/js/health.js', '/js/chart.js'
+  '/js/vehicles.js', '/js/health.js', '/js/chart.js?v=7'
 ];
 const CHECK_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const DEFAULT_AQI_FEED = '@10111';

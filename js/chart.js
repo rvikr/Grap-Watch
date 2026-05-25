@@ -74,6 +74,56 @@ function buildRenderableChartData(history, now = Date.now()) {
   return history.filter(h => h.ts >= cutoff);
 }
 
+function buildChartDomain(data) {
+  const values = data.map(d => Number(d.aqi)).filter(Number.isFinite);
+  if (values.length === 0) return { minAQI: 0, maxAQI: 500 };
+
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const minSpan = chartRange === '24h' ? 50 : 100;
+  const valueSpan = maxValue - minValue;
+  const targetSpan = Math.max(valueSpan * 1.4, minSpan);
+  const center = (minValue + maxValue) / 2;
+
+  let minAQI = center - targetSpan / 2;
+  let maxAQI = center + targetSpan / 2;
+
+  if (minAQI < 0) {
+    maxAQI -= minAQI;
+    minAQI = 0;
+  }
+  if (maxAQI > 500) {
+    minAQI -= maxAQI - 500;
+    maxAQI = 500;
+  }
+
+  minAQI = Math.max(0, Math.floor(minAQI / 10) * 10);
+  maxAQI = Math.min(500, Math.ceil(maxAQI / 10) * 10);
+
+  if (maxAQI - minAQI < minSpan) {
+    if (minAQI === 0) maxAQI = Math.min(500, minAQI + minSpan);
+    else if (maxAQI === 500) minAQI = Math.max(0, maxAQI - minSpan);
+  }
+
+  return { minAQI, maxAQI };
+}
+
+function buildYAxisTicks(minAQI, maxAQI) {
+  const span = maxAQI - minAQI;
+  let step = 100;
+  if (span <= 60) step = 10;
+  else if (span <= 120) step = 20;
+  else if (span <= 250) step = 50;
+
+  const ticks = [];
+  for (let v = Math.ceil(minAQI / step) * step; v <= maxAQI; v += step) {
+    ticks.push(v);
+  }
+  if (ticks[0] !== minAQI) ticks.unshift(minAQI);
+  if (ticks[ticks.length - 1] !== maxAQI) ticks.push(maxAQI);
+  return ticks.filter((v, i, arr) => i === 0 || v !== arr[i - 1]);
+}
+
 function drawAQIChart(canvas, data) {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -91,6 +141,13 @@ function drawAQIChart(canvas, data) {
 
   ctx.clearRect(0, 0, w, h);
 
+  const { minAQI, maxAQI } = buildChartDomain(data);
+  const aqiSpan = maxAQI - minAQI || 1;
+  function toY(aqi) {
+    const clamped = Math.max(minAQI, Math.min(Number(aqi), maxAQI));
+    return pad.top + ch - ((clamped - minAQI) / aqiSpan) * ch;
+  }
+
   // AQI zone background bands
   const zones = [
     { min: 0,   max: 50,  color: 'rgba(34,197,94,0.08)' },
@@ -101,10 +158,12 @@ function drawAQIChart(canvas, data) {
     { min: 400, max: 500, color: 'rgba(127,29,29,0.08)' },
   ];
 
-  const maxAQI = 500;
   zones.forEach(z => {
-    const y1 = pad.top + ch - (z.max / maxAQI) * ch;
-    const y2 = pad.top + ch - (z.min / maxAQI) * ch;
+    const bandMin = Math.max(z.min, minAQI);
+    const bandMax = Math.min(z.max, maxAQI);
+    if (bandMax <= bandMin) return;
+    const y1 = toY(bandMax);
+    const y2 = toY(bandMin);
     ctx.fillStyle = z.color;
     ctx.fillRect(pad.left, y1, cw, y2 - y1);
   });
@@ -113,8 +172,8 @@ function drawAQIChart(canvas, data) {
   ctx.fillStyle = '#5a6070';
   ctx.font = '9px "DM Mono", monospace';
   ctx.textAlign = 'right';
-  [0, 100, 200, 300, 400, 500].forEach(v => {
-    const y = pad.top + ch - (v / maxAQI) * ch;
+  buildYAxisTicks(minAQI, maxAQI).forEach(v => {
+    const y = toY(v);
     ctx.fillText(v, pad.left - 4, y + 3);
   });
 
@@ -124,7 +183,6 @@ function drawAQIChart(canvas, data) {
   const tsRange = maxTs - minTs || 1;
 
   function toX(ts) { return pad.left + ((ts - minTs) / tsRange) * cw; }
-  function toY(aqi) { return pad.top + ch - (Math.min(aqi, maxAQI) / maxAQI) * ch; }
 
   // Area fill
   ctx.beginPath();

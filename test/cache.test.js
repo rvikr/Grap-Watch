@@ -21,3 +21,8 @@ assert(
   indexSource.includes('src="js/stations.js?v=6"'),
   'Station script should use the current asset version so browsers fetch the updated station list'
 );
+
+assert(
+  indexSource.includes('src="js/chart.js?v=7"'),
+  'Chart script should use the current asset version so browsers fetch the updated trend renderer'
+);

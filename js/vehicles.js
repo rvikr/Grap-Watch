@@ -50,7 +50,7 @@ function saveVehicles(list) {
   safeStorage.setItem('grap-vehicles', JSON.stringify(list));
   // Sync to service worker cache
   if ('caches' in window) {
-    caches.open('grap-watch-v6').then(cache => {
+    caches.open('grap-watch-v7').then(cache => {
       cache.put('/grap-vehicles', new Response(JSON.stringify(list), {
         headers: { 'Content-Type': 'application/json' }
       }));

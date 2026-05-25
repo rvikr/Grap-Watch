@@ -37,6 +37,8 @@ assert.match(
   'refreshData() should return a promise so native refresh can wait for network work'
 );
 
+const canvasOps = [];
+
 function createCanvasContext() {
   return {
     scale() {},
@@ -44,8 +46,8 @@ function createCanvasContext() {
     fillRect() {},
     fillText() {},
     beginPath() {},
-    moveTo() {},
-    lineTo() {},
+    moveTo(x, y) { canvasOps.push({ type: 'moveTo', x, y }); },
+    lineTo(x, y) { canvasOps.push({ type: 'lineTo', x, y }); },
     closePath() {},
     fill() {},
     stroke() {},
@@ -86,7 +88,7 @@ const context = {
   Number,
 };
 const chartApi = vm.runInNewContext(
-  `${chartSource}\n;({ saveReading, renderChartCard });`,
+  `${chartSource}\n;({ saveReading, renderChartCard, drawAQIChart });`,
   context
 );
 
@@ -102,4 +104,22 @@ assert.strictEqual(
   elements.chartEmpty.style.display,
   'block',
   'AQI trend chart should stay in a collecting state until at least two real readings exist'
+);
+
+canvasOps.length = 0;
+const baseTs = Date.now();
+chartApi.drawAQIChart(elements.aqiChart, [
+  { aqi: 300, ts: baseTs },
+  { aqi: 305, ts: baseTs + 30 * 60 * 1000 },
+  { aqi: 310, ts: baseTs + 60 * 60 * 1000 },
+]);
+
+const trendYs = canvasOps
+  .filter(op => (op.type === 'moveTo' || op.type === 'lineTo') && op.y < 156)
+  .map(op => op.y);
+const ySpread = Math.max(...trendYs) - Math.min(...trendYs);
+
+assert(
+  ySpread >= 20,
+  'AQI trend chart should make small real AQI changes visibly non-flat'
 );
