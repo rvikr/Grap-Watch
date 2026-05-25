@@ -1,14 +1,11 @@
 package com.grapwatch;
 
 import android.Manifest;
-import android.app.AlarmManager;
-import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -70,7 +67,6 @@ public class MainActivity extends ComponentActivity {
             webView.loadUrl(OFFLINE_URL);
         }
 
-        schedulePeriodicAQIPoll();
     }
 
     // ── WebView Setup ─────────────────────────────────────
@@ -346,7 +342,16 @@ public class MainActivity extends ComponentActivity {
 
         @Override
         public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
+            AQIPollScheduler.schedulePeriodic(ctx);
+            AQIPollScheduler.enqueueImmediatePoll(ctx);
             for (int id : ids) updateWidget(ctx, mgr, id, null, null);
+        }
+
+        @Override
+        public void onEnabled(Context ctx) {
+            super.onEnabled(ctx);
+            AQIPollScheduler.schedulePeriodic(ctx);
+            AQIPollScheduler.enqueueImmediatePoll(ctx);
         }
 
         @Override
@@ -398,25 +403,4 @@ public class MainActivity extends ComponentActivity {
         }
     }
 
-
-    // ═══════════════════════════════════════════════════════
-    //  BACKGROUND WORK — 30-min AQI poll using WorkManager
-    // ═══════════════════════════════════════════════════════
-    private void schedulePeriodicAQIPoll() {
-        androidx.work.PeriodicWorkRequest workRequest =
-            new androidx.work.PeriodicWorkRequest.Builder(
-                AQIPollWorker.class,
-                30, java.util.concurrent.TimeUnit.MINUTES
-            )
-            .setConstraints(new androidx.work.Constraints.Builder()
-                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
-                .build())
-            .build();
-
-        androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "AQIPollWork",
-            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
-            workRequest
-        );
-    }
 }
