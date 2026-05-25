@@ -44,7 +44,7 @@ function renderChartCard() {
   const now = Date.now();
   const data = buildRenderableChartData(history, now);
 
-  if (data.length === 0) {
+  if (data.length < 2) {
     canvas.style.display = 'none';
     const empty = document.getElementById('chartEmpty');
     if (empty) { empty.style.display = 'block'; empty.textContent = s.chartCollecting; }
@@ -71,18 +71,7 @@ function buildRenderableChartData(history, now = Date.now()) {
   const cutoff = chartRange === '24h'
     ? now - 24 * 60 * 60 * 1000
     : now - 7 * 24 * 60 * 60 * 1000;
-  const data = history.filter(h => h.ts >= cutoff);
-
-  if (data.length !== 1) return data;
-
-  const point = data[0];
-  const starterInterval = chartRange === '24h'
-    ? 30 * 60 * 1000
-    : 6 * 60 * 60 * 1000;
-  return [
-    { aqi: point.aqi, ts: Math.max(cutoff, point.ts - starterInterval), synthetic: true },
-    point
-  ];
+  return history.filter(h => h.ts >= cutoff);
 }
 
 function drawAQIChart(canvas, data) {

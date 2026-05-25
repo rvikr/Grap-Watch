@@ -3,7 +3,7 @@
 //  Keeps WAQI token secret on the server side
 // ═══════════════════════════════════════════════════════════
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const { action, param } = req.query;
 
   if (!action || !param) {
@@ -37,4 +37,4 @@ export default async function handler(req, res) {
   } catch (err) {
     return res.status(502).json({ error: 'Failed to reach WAQI API' });
   }
-}
+};

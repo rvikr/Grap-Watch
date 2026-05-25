@@ -103,7 +103,7 @@ const STRINGS = {
     noVehicles: '\u0905\u092a\u0928\u0947 \u0935\u093e\u0939\u0928 \u091c\u094b\u0921\u093c\u0947\u0902 \u0914\u0930 GRAP \u092a\u094d\u0930\u0924\u093f\u092c\u0902\u0927 \u0926\u0947\u0916\u0947\u0902',
     // Chart strings
     chartTitle: 'AQI \u091f\u094d\u0930\u0947\u0902\u0921',
-    chartCollecting: '\u0921\u0947\u091f\u093e \u090f\u0915\u0924\u094d\u0930 \u0939\u094b \u0930\u0939\u093e \u0939\u0948...',
+    chartCollecting: '\u091f\u094d\u0930\u0947\u0902\u0921 \u0926\u094b \u0932\u093e\u0907\u0935 \u0905\u092a\u0921\u0947\u091f \u0915\u0947 \u092c\u093e\u0926 \u0926\u093f\u0916\u0947\u0917\u093e',
     // AQI scale category labels
     scaleGood: '\u0905\u091a\u094d\u091b\u093e',
     scaleSatisfactory: '\u0938\u0902\u0924\u094b\u0937\u091c\u0928\u0915',
@@ -212,7 +212,7 @@ const STRINGS = {
     noVehicles: 'Add your vehicles to see GRAP restrictions',
     // Chart strings
     chartTitle: 'AQI Trend',
-    chartCollecting: 'Collecting data...',
+    chartCollecting: 'Trend appears after two live updates',
     // AQI scale category labels
     scaleGood: 'Good',
     scaleSatisfactory: 'Satisfactory',

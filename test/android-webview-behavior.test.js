@@ -95,11 +95,11 @@ chartApi.renderChartCard();
 
 assert.strictEqual(
   elements.aqiChart.style.display,
-  'block',
-  'AQI trend chart should render immediately with a single live reading'
+  'none',
+  'AQI trend chart should not draw a fake flat line from a single live reading'
 );
-assert.notStrictEqual(
+assert.strictEqual(
   elements.chartEmpty.style.display,
   'block',
-  'AQI trend chart should not stay in collecting state after the first live reading'
+  'AQI trend chart should stay in a collecting state until at least two real readings exist'
 );
