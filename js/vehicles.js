@@ -57,14 +57,14 @@ function saveVehicles(list) {
     }).catch(err => console.warn('[Cache] Vehicle sync failed:', err));
   }
   // Sync to Android bridge
-  if (window.Android && typeof window.Android.saveVehicles === 'function') {
-    window.Android.saveVehicles(JSON.stringify(list));
+  if (typeof callAndroid === 'function') {
+    callAndroid('saveVehicles', JSON.stringify(list));
   }
 }
 
 function syncWithNativeBridge() {
-  if (window.Android && typeof window.Android.getVehicles === 'function') {
-    const vStr = window.Android.getVehicles();
+  if (typeof callAndroid === 'function') {
+    const vStr = callAndroid('getVehicles');
     if (vStr) {
       safeStorage.setItem('grap-vehicles', vStr);
     }

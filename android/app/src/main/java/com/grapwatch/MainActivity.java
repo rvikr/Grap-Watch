@@ -212,6 +212,35 @@ public class MainActivity extends ComponentActivity {
             NotificationManagerCompat.from(this).areNotificationsEnabled();
     }
 
+    private SharedPreferences notificationPreferences() {
+        return getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
+
+    private void setNotificationPreference(boolean enabled) {
+        notificationPreferences()
+            .edit()
+            .putBoolean(
+                KEY_NOTIFICATIONS_ENABLED,
+                NotificationPreference.persistedToggleState(enabled)
+            )
+            .apply();
+    }
+
+    private boolean notificationsEffectiveEnabled() {
+        return NotificationPreference.effectiveEnabled(
+            notificationPreferences().getBoolean(KEY_NOTIFICATIONS_ENABLED, false),
+            hasNotifPermission()
+        );
+    }
+
+    private void syncWebNotificationState() {
+        if (webView == null) return;
+        webView.evaluateJavascript(
+            NotificationPreference.webSyncScript(notificationsEffectiveEnabled()),
+            null
+        );
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
@@ -219,16 +248,8 @@ public class MainActivity extends ComponentActivity {
         if (requestCode == NOTIF_PERMISSION) {
             boolean granted = grantResults.length > 0 &&
                 grantResults[0] == PackageManager.PERMISSION_GRANTED;
-            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .edit()
-                .putBoolean(KEY_NOTIFICATIONS_ENABLED, granted)
-                .apply();
-            if (!granted && webView != null) {
-                webView.evaluateJavascript(
-                    "try{localStorage.removeItem('grap-notif');document.getElementById('notifToggle').checked=false;}catch(e){}",
-                    null
-                );
-            }
+            setNotificationPreference(granted);
+            syncWebNotificationState();
         }
     }
 
@@ -240,7 +261,7 @@ public class MainActivity extends ComponentActivity {
 
         @JavascriptInterface
         public void showNotification(String title, String body) {
-            if (!areNotificationsEnabled()) return;
+            if (!notificationsEffectiveEnabled()) return;
 
             NotificationCompat.Builder builder = new NotificationCompat.Builder(ctx, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notif)
@@ -277,8 +298,9 @@ public class MainActivity extends ComponentActivity {
         @JavascriptInterface
         public void requestNotificationPermission() {
             MainActivity.this.runOnUiThread(() -> {
+                setNotificationPreference(true);
                 if (hasRuntimeNotifPermission()) {
-                    setNotificationsEnabled(true);
+                    syncWebNotificationState();
                     return;
                 }
                 requestNotifPermission();
@@ -286,15 +308,14 @@ public class MainActivity extends ComponentActivity {
         }
 
         @JavascriptInterface
-        public void setNotificationsEnabled(boolean enabled) {
-            SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-            prefs.edit().putBoolean(KEY_NOTIFICATIONS_ENABLED, enabled && hasNotifPermission()).apply();
+        public boolean setNotificationsEnabled(boolean enabled) {
+            setNotificationPreference(enabled);
+            return notificationsEffectiveEnabled();
         }
 
         @JavascriptInterface
         public boolean areNotificationsEnabled() {
-            SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-            return prefs.getBoolean(KEY_NOTIFICATIONS_ENABLED, false) && hasNotifPermission();
+            return notificationsEffectiveEnabled();
         }
 
         @JavascriptInterface

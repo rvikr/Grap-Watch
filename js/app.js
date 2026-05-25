@@ -91,16 +91,49 @@ function isNativeIOS() {
   return !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.iOSBridge);
 }
 
-function isNativeAndroid() {
+function hasAndroidMethod(method) {
   try {
-    return !!(window.Android && typeof window.Android.isAndroid === 'function' && window.Android.isAndroid());
+    return !!(window.Android && window.Android[method] != null);
   } catch {
     return false;
   }
 }
 
+function callAndroid(method, ...args) {
+  try {
+    if (!hasAndroidMethod(method)) return undefined;
+    return window.Android[method](...args);
+  } catch {
+    return undefined;
+  }
+}
+
+function androidBool(value) {
+  return value === true || value === 'true';
+}
+
+function isNativeAndroid() {
+  const bridgeResult = callAndroid('isAndroid');
+  return androidBool(bridgeResult) ||
+    /GRAPWatchAndroid\//.test(navigator.userAgent);
+}
+
 function notificationsSupported() {
   return isNativeAndroid() || isNativeIOS() || 'Notification' in window;
+}
+
+function syncAndroidNotificationState(enabled) {
+  const isEnabled = androidBool(enabled);
+  const toggle = document.getElementById('notifToggle');
+
+  if (isEnabled) {
+    safeStorage.setItem('grap-notif', '1');
+    document.getElementById('notifToast').classList.remove('show');
+  } else {
+    safeStorage.removeItem('grap-notif');
+  }
+
+  if (toggle) toggle.checked = isEnabled;
 }
 
 // ─── NOTIFICATIONS ────────────────────────────────────────
@@ -108,9 +141,9 @@ function handleNotifToggle(enabled) {
   if (enabled) {
     requestNotificationPermission();
   } else {
-    safeStorage.removeItem('grap-notif');
-    if (isNativeAndroid() && typeof window.Android.setNotificationsEnabled === 'function') {
-      window.Android.setNotificationsEnabled(false);
+    syncAndroidNotificationState(false);
+    if (isNativeAndroid() && hasAndroidMethod('setNotificationsEnabled')) {
+      syncAndroidNotificationState(callAndroid('setNotificationsEnabled', false));
     }
   }
 }
@@ -120,14 +153,13 @@ async function requestNotificationPermission() {
   const toggle = document.getElementById('notifToggle');
 
   if (isNativeAndroid()) {
-    safeStorage.setItem('grap-notif', '1');
-    toggle.checked = true;
     document.getElementById('notifToast').classList.remove('show');
-    if (typeof window.Android.setNotificationsEnabled === 'function') {
-      window.Android.setNotificationsEnabled(true);
-    }
-    if (typeof window.Android.requestNotificationPermission === 'function') {
-      window.Android.requestNotificationPermission();
+    if (hasAndroidMethod('requestNotificationPermission')) {
+      callAndroid('requestNotificationPermission');
+    } else if (hasAndroidMethod('setNotificationsEnabled')) {
+      syncAndroidNotificationState(callAndroid('setNotificationsEnabled', true));
+    } else {
+      syncAndroidNotificationState(false);
     }
     return;
   }
@@ -188,11 +220,10 @@ function showIOSInstallGuide(message) {
 function maybeShowNotifPrompt() {
   if (isNativeAndroid()) {
     let enabled = safeStorage.getItem('grap-notif') === '1';
-    if (typeof window.Android.areNotificationsEnabled === 'function') {
-      enabled = window.Android.areNotificationsEnabled();
-      if (enabled) safeStorage.setItem('grap-notif', '1');
+    if (hasAndroidMethod('areNotificationsEnabled')) {
+      enabled = androidBool(callAndroid('areNotificationsEnabled'));
     }
-    document.getElementById('notifToggle').checked = enabled;
+    syncAndroidNotificationState(enabled);
     if (!enabled) {
       setTimeout(() => {
         document.getElementById('notifToast').classList.add('show');
@@ -214,12 +245,12 @@ function maybeShowNotifPrompt() {
 }
 
 async function localNotify(title, body) {
-  if (window.Android && typeof window.Android.showNotification === 'function') {
-    if (typeof window.Android.areNotificationsEnabled === 'function' &&
-        !window.Android.areNotificationsEnabled()) {
+  if (isNativeAndroid() && hasAndroidMethod('showNotification')) {
+    if (hasAndroidMethod('areNotificationsEnabled') &&
+        !androidBool(callAndroid('areNotificationsEnabled'))) {
       return;
     }
-    window.Android.showNotification(title, body);
+    callAndroid('showNotification', title, body);
     return;
   }
   if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.iOSBridge) {
@@ -458,16 +489,16 @@ function renderMain(data) {
     }
 
     let alertsEnabled = safeStorage.getItem('grap-notif') === '1';
-    if (isNativeAndroid() && typeof window.Android.areNotificationsEnabled === 'function') {
-      alertsEnabled = window.Android.areNotificationsEnabled();
+    if (isNativeAndroid() && hasAndroidMethod('areNotificationsEnabled')) {
+      alertsEnabled = androidBool(callAndroid('areNotificationsEnabled'));
     }
     if (alertsEnabled) localNotify(title, body);
   }
   currentStageNum = stageNum;
 
   // Native widget integration
-  if (window.Android && typeof window.Android.updateWidget === 'function') {
-    window.Android.updateWidget(aqi, s.stageNames[stageNum], GRAP_COLORS[stageNum].color);
+  if (isNativeAndroid() && hasAndroidMethod('updateWidget')) {
+    callAndroid('updateWidget', aqi, s.stageNames[stageNum], GRAP_COLORS[stageNum].color);
   } else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.iOSBridge) {
     window.webkit.messageHandlers.iOSBridge.postMessage({
       action: 'updateWidget',
