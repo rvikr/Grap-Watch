@@ -23,6 +23,21 @@ assert(
 );
 
 assert(
-  indexSource.includes('src="js/chart.js?v=7"'),
+  indexSource.includes('src="js/i18n.js?v=8"'),
+  'i18n script should use the current asset version so browsers fetch updated chart copy'
+);
+
+assert(
+  indexSource.includes('src="js/vehicles.js?v=8"'),
+  'Vehicle script should use the current asset version so browsers fetch the active cache name'
+);
+
+assert(
+  indexSource.includes('src="js/chart.js?v=8"'),
   'Chart script should use the current asset version so browsers fetch the updated trend renderer'
+);
+
+assert(
+  indexSource.includes('src="js/app.js?v=8"'),
+  'App script should use the current asset version so browsers fetch live-only chart history writes'
 );

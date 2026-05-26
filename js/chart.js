@@ -3,28 +3,43 @@
 // ═══════════════════════════════════════════════════════════
 
 const MAX_HISTORY = 336; // 7 days at 30-min intervals
+const HISTORY_VERSION = '2';
+const HISTORY_VERSION_KEY = 'grap-history-version';
 let chartRange = '24h';
 
 function loadHistory() {
+  if (safeStorage.getItem(HISTORY_VERSION_KEY) !== HISTORY_VERSION) return [];
   const raw = safeStorage.getItem('grap-history');
   if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  try {
+    return JSON.parse(raw)
+      .filter(h => Number.isFinite(Number(h.aqi)) && Number.isFinite(Number(h.ts)))
+      .map(h => ({ aqi: Number(h.aqi), ts: Number(h.ts), source: h.source || 'live' }))
+      .sort((a, b) => a.ts - b.ts);
+  } catch {
+    return [];
+  }
 }
 
-function saveReading(aqi, ts) {
+function saveReading(aqi, ts, options = {}) {
   if (aqi == null || aqi === '-') return;
+  if ((options.source || 'live') !== 'live') return;
+  const value = Number(aqi);
+  if (!Number.isFinite(value) || !Number.isFinite(Number(ts))) return;
+
   const history = loadHistory();
   // Avoid duplicate entries within 5 minutes
   if (history.length > 0) {
     const last = history[history.length - 1];
     if (ts - last.ts < 5 * 60 * 1000) return;
   }
-  history.push({ aqi: Number(aqi), ts });
+  history.push({ aqi: value, ts: Number(ts), source: 'live' });
   // Prune entries older than 7 days
   const cutoff = ts - 7 * 24 * 60 * 60 * 1000;
   const pruned = history.filter(h => h.ts >= cutoff);
   // Keep max entries
   while (pruned.length > MAX_HISTORY) pruned.shift();
+  safeStorage.setItem(HISTORY_VERSION_KEY, HISTORY_VERSION);
   safeStorage.setItem('grap-history', JSON.stringify(pruned));
 }
 
@@ -47,7 +62,7 @@ function renderChartCard() {
   if (data.length < 2) {
     canvas.style.display = 'none';
     const empty = document.getElementById('chartEmpty');
-    if (empty) { empty.style.display = 'block'; empty.textContent = s.chartCollecting; }
+    if (empty) { empty.style.display = 'block'; empty.textContent = getChartCollectingText(s); }
     document.getElementById('chartStartLabel').textContent = '';
     document.getElementById('chartEndLabel').textContent = '';
     return;
@@ -57,14 +72,25 @@ function renderChartCard() {
   const empty = document.getElementById('chartEmpty');
   if (empty) empty.style.display = 'none';
 
-  // Time labels
-  const fmt = { hour: '2-digit', minute: '2-digit' };
   document.getElementById('chartStartLabel').textContent =
-    new Date(data[0].ts).toLocaleTimeString(lang === 'hi' ? 'hi-IN' : 'en-IN', fmt);
+    formatChartLabel(data[0].ts);
   document.getElementById('chartEndLabel').textContent =
-    new Date(data[data.length - 1].ts).toLocaleTimeString(lang === 'hi' ? 'hi-IN' : 'en-IN', fmt);
+    formatChartLabel(data[data.length - 1].ts);
 
   drawAQIChart(canvas, data);
+}
+
+function getChartCollectingText(s) {
+  if (chartRange === '24h') return s.chartCollecting24h || s.chartCollecting;
+  return s.chartCollecting7d || s.chartCollecting;
+}
+
+function formatChartLabel(ts, range = chartRange) {
+  const locale = lang === 'hi' ? 'hi-IN' : 'en-IN';
+  const fmt = range === '7d'
+    ? { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }
+    : { hour: '2-digit', minute: '2-digit' };
+  return new Date(ts).toLocaleString(locale, fmt);
 }
 
 function buildRenderableChartData(history, now = Date.now()) {
@@ -122,6 +148,28 @@ function buildYAxisTicks(minAQI, maxAQI) {
   if (ticks[0] !== minAQI) ticks.unshift(minAQI);
   if (ticks[ticks.length - 1] !== maxAQI) ticks.push(maxAQI);
   return ticks.filter((v, i, arr) => i === 0 || v !== arr[i - 1]);
+}
+
+function getMaxConnectedGapMs() {
+  return chartRange === '24h'
+    ? 90 * 60 * 1000
+    : 6 * 60 * 60 * 1000;
+}
+
+function buildChartSegments(data, maxGapMs = getMaxConnectedGapMs()) {
+  if (data.length === 0) return [];
+
+  const segments = [[data[0]]];
+  for (let i = 1; i < data.length; i++) {
+    const point = data[i];
+    const prev = data[i - 1];
+    if (point.ts - prev.ts > maxGapMs) {
+      segments.push([point]);
+    } else {
+      segments[segments.length - 1].push(point);
+    }
+  }
+  return segments;
 }
 
 function drawAQIChart(canvas, data) {
@@ -183,33 +231,45 @@ function drawAQIChart(canvas, data) {
   const tsRange = maxTs - minTs || 1;
 
   function toX(ts) { return pad.left + ((ts - minTs) / tsRange) * cw; }
+  const segments = buildChartSegments(data);
 
   // Area fill
-  ctx.beginPath();
-  ctx.moveTo(toX(data[0].ts), toY(data[0].aqi));
-  for (let i = 1; i < data.length; i++) {
-    ctx.lineTo(toX(data[i].ts), toY(data[i].aqi));
-  }
-  ctx.lineTo(toX(data[data.length - 1].ts), pad.top + ch);
-  ctx.lineTo(toX(data[0].ts), pad.top + ch);
-  ctx.closePath();
-
   const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
   grad.addColorStop(0, 'rgba(255,107,53,0.2)');
   grad.addColorStop(1, 'rgba(255,107,53,0.02)');
-  ctx.fillStyle = grad;
-  ctx.fill();
+  segments.filter(segment => segment.length > 1).forEach(segment => {
+    ctx.beginPath();
+    ctx.moveTo(toX(segment[0].ts), toY(segment[0].aqi));
+    for (let i = 1; i < segment.length; i++) {
+      ctx.lineTo(toX(segment[i].ts), toY(segment[i].aqi));
+    }
+    ctx.lineTo(toX(segment[segment.length - 1].ts), pad.top + ch);
+    ctx.lineTo(toX(segment[0].ts), pad.top + ch);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+  });
 
   // Line
-  ctx.beginPath();
-  ctx.moveTo(toX(data[0].ts), toY(data[0].aqi));
-  for (let i = 1; i < data.length; i++) {
-    ctx.lineTo(toX(data[i].ts), toY(data[i].aqi));
-  }
   ctx.strokeStyle = '#ff6b35';
   ctx.lineWidth = 1.5;
   ctx.lineJoin = 'round';
-  ctx.stroke();
+  segments.filter(segment => segment.length > 1).forEach(segment => {
+    ctx.beginPath();
+    ctx.moveTo(toX(segment[0].ts), toY(segment[0].aqi));
+    for (let i = 1; i < segment.length; i++) {
+      ctx.lineTo(toX(segment[i].ts), toY(segment[i].aqi));
+    }
+    ctx.stroke();
+  });
+
+  // Reading dots
+  data.slice(0, -1).forEach(point => {
+    ctx.beginPath();
+    ctx.arc(toX(point.ts), toY(point.aqi), 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff6b35';
+    ctx.fill();
+  });
 
   // Current point dot
   const last = data[data.length - 1];

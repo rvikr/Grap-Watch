@@ -104,6 +104,8 @@ const STRINGS = {
     // Chart strings
     chartTitle: 'AQI \u091f\u094d\u0930\u0947\u0902\u0921',
     chartCollecting: '\u091f\u094d\u0930\u0947\u0902\u0921 \u0926\u094b \u0932\u093e\u0907\u0935 \u0905\u092a\u0921\u0947\u091f \u0915\u0947 \u092c\u093e\u0926 \u0926\u093f\u0916\u0947\u0917\u093e',
+    chartCollecting24h: '24H \u091f\u094d\u0930\u0947\u0902\u0921 \u0915\u0947 \u0932\u093f\u090f \u092a\u093f\u091b\u0932\u0947 24 \u0918\u0902\u091f\u094b\u0902 \u092e\u0947\u0902 \u0926\u094b \u0932\u093e\u0907\u0935 \u0905\u092a\u0921\u0947\u091f \u091a\u093e\u0939\u093f\u090f',
+    chartCollecting7d: '7D \u091f\u094d\u0930\u0947\u0902\u0921 \u0915\u0947 \u0932\u093f\u090f \u0907\u0938 \u0939\u092b\u094d\u0924\u0947 \u0926\u094b \u0932\u093e\u0907\u0935 \u0905\u092a\u0921\u0947\u091f \u091a\u093e\u0939\u093f\u090f',
     // AQI scale category labels
     scaleGood: '\u0905\u091a\u094d\u091b\u093e',
     scaleSatisfactory: '\u0938\u0902\u0924\u094b\u0937\u091c\u0928\u0915',
@@ -213,6 +215,8 @@ const STRINGS = {
     // Chart strings
     chartTitle: 'AQI Trend',
     chartCollecting: 'Trend appears after two live updates',
+    chartCollecting24h: '24H trend needs two live updates in the last 24 hours',
+    chartCollecting7d: '7D trend needs two live updates this week',
     // AQI scale category labels
     scaleGood: 'Good',
     scaleSatisfactory: 'Satisfactory',

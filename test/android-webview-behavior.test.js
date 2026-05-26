@@ -75,6 +75,7 @@ const context = {
   safeStorage: {
     getItem: key => storage.get(key) || null,
     setItem: (key, value) => storage.set(key, value),
+    removeItem: key => storage.delete(key),
   },
   STRINGS: { en: { chartCollecting: 'Collecting data...' } },
   lang: 'en',
@@ -88,7 +89,13 @@ const context = {
   Number,
 };
 const chartApi = vm.runInNewContext(
-  `${chartSource}\n;({ saveReading, renderChartCard, drawAQIChart });`,
+  `${chartSource}\n;({
+    saveReading,
+    renderChartCard,
+    drawAQIChart,
+    buildChartSegments: typeof buildChartSegments === 'function' ? buildChartSegments : null,
+    formatChartLabel: typeof formatChartLabel === 'function' ? formatChartLabel : null,
+  });`,
   context
 );
 
@@ -122,4 +129,58 @@ const ySpread = Math.max(...trendYs) - Math.min(...trendYs);
 assert(
   ySpread >= 20,
   'AQI trend chart should make small real AQI changes visibly non-flat'
+);
+
+storage.clear();
+const demoTs = Date.now();
+chartApi.saveReading(312, demoTs, { source: 'demo' });
+chartApi.saveReading(190, demoTs + 60 * 1000);
+
+assert.deepStrictEqual(
+  JSON.parse(storage.get('grap-history')).map(reading => reading.aqi),
+  [190],
+  'Demo AQI readings should not be persisted or suppress the first live reading'
+);
+assert.strictEqual(
+  storage.get('grap-history-version'),
+  '2',
+  'Saved AQI history should mark the live-only history schema version'
+);
+
+storage.clear();
+storage.set('grap-history', JSON.stringify([
+  { aqi: 312, ts: demoTs - 60 * 60 * 1000 },
+]));
+chartApi.saveReading(188, demoTs);
+
+assert.deepStrictEqual(
+  JSON.parse(storage.get('grap-history')).map(reading => reading.aqi),
+  [188],
+  'Legacy unversioned AQI history should be reset because it may contain demo readings'
+);
+
+assert.strictEqual(
+  typeof chartApi.buildChartSegments,
+  'function',
+  'AQI chart should expose gap-aware segment building for test coverage'
+);
+assert.deepStrictEqual(
+  Array.from(chartApi.buildChartSegments([
+    { aqi: 190, ts: demoTs },
+    { aqi: 220, ts: demoTs + 24 * 60 * 60 * 1000 },
+    { aqi: 230, ts: demoTs + 25 * 60 * 60 * 1000 },
+  ], 6 * 60 * 60 * 1000), segment => segment.length),
+  [1, 2],
+  'AQI trend chart should not connect readings across long collection gaps'
+);
+
+assert.strictEqual(
+  typeof chartApi.formatChartLabel,
+  'function',
+  'AQI chart should expose range-aware label formatting for test coverage'
+);
+assert.match(
+  chartApi.formatChartLabel(Date.parse('2026-05-26T17:40:00+05:30'), '7d'),
+  /26|May/,
+  '7D AQI trend labels should include date context, not only the time'
 );

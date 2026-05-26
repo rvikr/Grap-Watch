@@ -441,8 +441,10 @@ function renderMain(data) {
   const aqi = data.aqi;
   if (aqi == null || aqi === '-' || aqi === undefined) { showNoData(); return; }
 
+  const isDemoRender = window._isDemo === true;
+
   // Clear demo state on live data
-  if (window._isDemo) {
+  if (isDemoRender) {
     window._isDemo = false;
     const demoBanner = document.getElementById('demoBanner');
     if (demoBanner) demoBanner.classList.remove('show');
@@ -550,7 +552,7 @@ function renderMain(data) {
     now.toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' });
 
   // Save reading for chart
-  saveReading(aqi, now.getTime());
+  if (!isDemoRender) saveReading(aqi, now.getTime(), { source: 'live' });
 
   // Render new feature cards
   renderHealthCard(aqi);
